@@ -13,6 +13,31 @@ export const DEFAULT_ODDS_FORMAT = 'decimal';
 // Refresh interval: 60 seconds
 export const REFRESH_INTERVAL_MS = 60_000;
 
+// Available sport options for the dashboard selector.
+// The Odds API uses these keys. 'auto_horse_racing' is our special key
+// that triggers the horse-racing discovery logic.
+export const SPORT_OPTIONS = [
+  { key: 'auto_horse_racing', label: 'Horse Racing (auto-detect)', group: 'Racing' },
+  { key: 'soccer_epl', label: 'Soccer — EPL', group: 'Soccer' },
+  { key: 'soccer_fa_cup', label: 'Soccer — FA Cup', group: 'Soccer' },
+  { key: 'soccer_uefa_champs_league', label: 'Soccer — Champions League', group: 'Soccer' },
+  { key: 'basketball_nba', label: 'Basketball — NBA', group: 'Basketball' },
+  { key: 'americanfootball_nfl', label: 'American Football — NFL', group: 'American Football' },
+  { key: 'icehockey_nhl', label: 'Ice Hockey — NHL', group: 'Ice Hockey' },
+  { key: 'tennis_atp_french_open', label: 'Tennis — ATP', group: 'Tennis' },
+  { key: 'mma_mixed_martial_arts', label: 'MMA', group: 'Combat' },
+  { key: 'boxing_boxing', label: 'Boxing', group: 'Combat' },
+  { key: 'rugbyleague_nrl', label: 'Rugby League — NRL', group: 'Rugby' },
+] as const;
+
+// Region options
+export const REGION_OPTIONS = [
+  { key: 'uk', label: 'UK' },
+  { key: 'us', label: 'US' },
+  { key: 'eu', label: 'EU' },
+  { key: 'au', label: 'AU' },
+] as const;
+
 // Default user settings
 export const DEFAULT_SETTINGS: UserSettings = {
   bankroll: 1000,

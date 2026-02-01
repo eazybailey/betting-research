@@ -5,7 +5,6 @@ import {
 } from './types';
 import {
   ODDS_API_BASE_URL,
-  DEFAULT_REGION,
   DEFAULT_MARKETS,
   DEFAULT_ODDS_FORMAT,
 } from './constants';
@@ -98,12 +97,13 @@ export async function findHorseRacingSportKey(apiKey: string): Promise<string | 
  */
 export async function fetchOdds(
   apiKey: string,
-  sportKey: string
+  sportKey: string,
+  region: string = 'uk'
 ): Promise<ApiResponse<OddsApiEvent[]>> {
   try {
     const params = new URLSearchParams({
       apiKey,
-      regions: DEFAULT_REGION,
+      regions: region,
       markets: DEFAULT_MARKETS,
       oddsFormat: DEFAULT_ODDS_FORMAT,
     });
@@ -136,7 +136,8 @@ export async function fetchOdds(
  * Some APIs expose multiple horse racing categories (e.g., per country).
  */
 export async function fetchHorseRacingOdds(
-  apiKey: string
+  apiKey: string,
+  region: string = 'uk'
 ): Promise<ApiResponse<OddsApiEvent[]>> {
   const result = await fetchSports(apiKey);
   if (!result.data) {
@@ -165,7 +166,7 @@ export async function fetchHorseRacingOdds(
   // Fetch odds for each horse racing sport key
   const allEvents: OddsApiEvent[] = [];
   for (const key of horseRacingKeys) {
-    const oddsResult = await fetchOdds(apiKey, key);
+    const oddsResult = await fetchOdds(apiKey, key, region);
     if (oddsResult.data) {
       allEvents.push(...oddsResult.data);
     }
