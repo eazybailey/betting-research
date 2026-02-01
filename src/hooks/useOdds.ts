@@ -171,12 +171,17 @@ async function fetchOpeningOdds(): Promise<Map<string, number>> {
 /**
  * Main hook: fetches odds from our API, saves snapshots, and transforms data.
  */
-export function useOdds(settings: UserSettings) {
+export function useOdds(
+  settings: UserSettings,
+  sport: string = 'auto_horse_racing',
+  region: string = 'uk'
+) {
   return useQuery({
-    queryKey: ['odds', settings.thresholds, settings.fieldSizeMin, settings.fieldSizeMax],
+    queryKey: ['odds', sport, region, settings.thresholds, settings.fieldSizeMin, settings.fieldSizeMax],
     queryFn: async () => {
-      // Fetch current odds
-      const res = await fetch('/api/odds');
+      // Fetch current odds with sport and region params
+      const params = new URLSearchParams({ sport, region });
+      const res = await fetch(`/api/odds?${params}`);
       if (!res.ok) throw new Error(`Failed to fetch odds: ${res.status}`);
       const json = await res.json();
 

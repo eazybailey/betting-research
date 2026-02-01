@@ -10,11 +10,15 @@ import SettingsPanel from '@/components/SettingsPanel';
 
 export default function Dashboard() {
   const { settings, updateSettings, resetSettings } = useSettings();
-  const { data, isLoading, isError, error, isRefetching, refetch } = useOdds(settings);
+  const [sport, setSport] = useState('auto_horse_racing');
+  const [region, setRegion] = useState('uk');
+  const { data, isLoading, isError, error, isRefetching, refetch } = useOdds(settings, sport, region);
   const [showSettings, setShowSettings] = useState(false);
 
   const races = data?.races ?? [];
   const stats = data?.stats ?? null;
+
+  const isHorseRacing = sport === 'auto_horse_racing';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -22,6 +26,10 @@ export default function Dashboard() {
         stats={stats}
         isLoading={isLoading}
         isRefetching={isRefetching}
+        sport={sport}
+        region={region}
+        onSportChange={setSport}
+        onRegionChange={setRegion}
         onRefresh={() => refetch()}
         onToggleSettings={() => setShowSettings((s) => !s)}
       />
@@ -74,10 +82,11 @@ export default function Dashboard() {
         {/* Empty state */}
         {!isLoading && !isError && races.length === 0 && (
           <div className="text-center py-20">
-            <p className="text-sm text-gray-500 mb-1">No races available</p>
+            <p className="text-sm text-gray-500 mb-1">No events available</p>
             <p className="text-xs text-gray-400">
-              Horse racing data may not be available outside of race days.
-              Check back during UK racing hours.
+              {isHorseRacing
+                ? 'Horse racing data may not be available outside of race days. Try selecting a different sport (e.g. Soccer — EPL or Basketball — NBA) to verify data is flowing.'
+                : 'No events found for this sport and region. Try a different combination.'}
             </p>
           </div>
         )}
