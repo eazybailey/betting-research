@@ -70,15 +70,15 @@ export default function Dashboard() {
                         <li>
                           Add{' '}
                           <span className="font-mono">
-                            RACING_API_USERNAME=your_username
+                            RACING_API_USERNAME
                           </span>{' '}
                           and{' '}
                           <span className="font-mono">
-                            RACING_API_PASSWORD=your_password
+                            RACING_API_PASSWORD
                           </span>{' '}
-                          to <span className="font-mono">.env.local</span>
+                          to Vercel Environment Variables
                         </li>
-                        <li>Restart the dev server</li>
+                        <li>Redeploy on Vercel</li>
                       </>
                     ) : (
                       <>
@@ -90,11 +90,11 @@ export default function Dashboard() {
                         <li>
                           Add{' '}
                           <span className="font-mono">
-                            ODDS_API_KEY=your_key
+                            ODDS_API_KEY
                           </span>{' '}
-                          to <span className="font-mono">.env.local</span>
+                          to Vercel Environment Variables
                         </li>
-                        <li>Restart the dev server</li>
+                        <li>Redeploy on Vercel</li>
                       </>
                     )}
                   </ol>
