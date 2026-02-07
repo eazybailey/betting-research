@@ -169,6 +169,40 @@ async function fetchOpeningOdds(): Promise<Map<string, number>> {
 }
 
 /**
+ * Fetch events from the appropriate API based on sport selection.
+ * Horse racing uses The Racing API; all other sports use The Odds API.
+ */
+async function fetchEvents(
+  sport: string,
+  region: string
+): Promise<{ events: OddsApiEvent[]; apiUsage: { requestsRemaining: number | null; requestsUsed: number | null } }> {
+  const isHorseRacing = sport === 'auto_horse_racing' || sport === 'horse_racing';
+
+  if (isHorseRacing) {
+    // Horse racing → The Racing API
+    const res = await fetch('/api/racing?day=today');
+    if (!res.ok) throw new Error(`Failed to fetch racing data: ${res.status}`);
+    const json = await res.json();
+    if (json.error) throw new Error(json.error);
+    return {
+      events: json.data || [],
+      apiUsage: { requestsRemaining: null, requestsUsed: null },
+    };
+  }
+
+  // All other sports → The Odds API
+  const params = new URLSearchParams({ sport, region });
+  const res = await fetch(`/api/odds?${params}`);
+  if (!res.ok) throw new Error(`Failed to fetch odds: ${res.status}`);
+  const json = await res.json();
+  if (json.error) throw new Error(json.error);
+  return {
+    events: json.data || [],
+    apiUsage: json.apiUsage || { requestsRemaining: null, requestsUsed: null },
+  };
+}
+
+/**
  * Main hook: fetches odds from our API, saves snapshots, and transforms data.
  */
 export function useOdds(
@@ -179,16 +213,7 @@ export function useOdds(
   return useQuery({
     queryKey: ['odds', sport, region, settings.thresholds, settings.fieldSizeMin, settings.fieldSizeMax],
     queryFn: async () => {
-      // Fetch current odds with sport and region params
-      const params = new URLSearchParams({ sport, region });
-      const res = await fetch(`/api/odds?${params}`);
-      if (!res.ok) throw new Error(`Failed to fetch odds: ${res.status}`);
-      const json = await res.json();
-
-      if (json.error) throw new Error(json.error);
-
-      const events: OddsApiEvent[] = json.data || [];
-      const apiUsage = json.apiUsage || { requestsRemaining: null, requestsUsed: null };
+      const { events, apiUsage } = await fetchEvents(sport, region);
 
       // Save snapshots to Supabase (non-blocking)
       if (events.length > 0) {

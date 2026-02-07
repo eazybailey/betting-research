@@ -128,6 +128,64 @@ export interface KellyResult {
   cappedByMaxLiability: boolean;
 }
 
+// --- The Racing API response types ---
+
+export interface RacingApiRunner {
+  horse_id: string;
+  horse: string;
+  number: number;
+  draw: number;
+  age: string;
+  sex_code: string;
+  form: string;
+  lbs: string;
+  ofr: string;
+  rpr: string;
+  ts: string;
+  jockey: string;
+  jockey_id: string;
+  trainer: string;
+  trainer_id: string;
+  silk_url: string;
+  sire: string;
+  dam: string;
+  headgear: string;
+  comment: string;
+  spotlight: string;
+  // SP fields (available in results / post-race)
+  sp?: string;
+  sp_dec?: string;
+  // Bookmaker odds (Standard plan) — keyed by bookmaker name, decimal price
+  odds?: Record<string, number>;
+}
+
+export interface RacingApiRacecard {
+  course: string;
+  course_id: string;
+  date: string;
+  off_time: string;
+  race_name: string;
+  distance_round: string;
+  distance: string;
+  distance_f: string;
+  region: string;
+  pattern: string;
+  race_class: string;
+  type: string;
+  age_band: string;
+  rating_band: string;
+  prize: string;
+  field_size: number;
+  going_detailed: string;
+  going: string;
+  surface: string;
+  runners: RacingApiRunner[];
+}
+
+export interface RacingApiResponse {
+  racecards: RacingApiRacecard[];
+}
+
 // --- API response wrapper ---
 
 export interface ApiResponse<T> {
