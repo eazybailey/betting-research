@@ -10,7 +10,7 @@ import SettingsPanel from '@/components/SettingsPanel';
 
 export default function Dashboard() {
   const { settings, updateSettings, resetSettings } = useSettings();
-  const [sport, setSport] = useState('auto_horse_racing');
+  const [sport, setSport] = useState('horse_racing');
   const [region, setRegion] = useState('uk');
   const { data, isLoading, isError, error, isRefetching, refetch } = useOdds(settings, sport, region);
   const [showSettings, setShowSettings] = useState(false);
@@ -18,7 +18,7 @@ export default function Dashboard() {
   const races = data?.races ?? [];
   const stats = data?.stats ?? null;
 
-  const isHorseRacing = sport === 'auto_horse_racing';
+  const isHorseRacing = sport === 'horse_racing' || sport === 'auto_horse_racing';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -56,23 +56,47 @@ export default function Dashboard() {
               {error instanceof Error ? error.message : 'Unknown error'}
             </p>
             {error instanceof Error &&
-              error.message.includes('ODDS_API_KEY') && (
+              (error.message.includes('ODDS_API_KEY') || error.message.includes('Racing API credentials')) && (
                 <div className="mt-2 text-xs text-red-500">
                   <p className="font-medium">Setup required:</p>
                   <ol className="list-decimal ml-4 mt-1 space-y-0.5">
-                    <li>
-                      Sign up at{' '}
-                      <span className="font-mono">the-odds-api.com</span>
-                    </li>
-                    <li>Copy your API key</li>
-                    <li>
-                      Add{' '}
-                      <span className="font-mono">
-                        ODDS_API_KEY=your_key
-                      </span>{' '}
-                      to <span className="font-mono">.env.local</span>
-                    </li>
-                    <li>Restart the dev server</li>
+                    {error.message.includes('Racing API') ? (
+                      <>
+                        <li>
+                          Sign up at{' '}
+                          <span className="font-mono">theracingapi.com</span>
+                        </li>
+                        <li>Get your username and password</li>
+                        <li>
+                          Add{' '}
+                          <span className="font-mono">
+                            RACING_API_USERNAME=your_username
+                          </span>{' '}
+                          and{' '}
+                          <span className="font-mono">
+                            RACING_API_PASSWORD=your_password
+                          </span>{' '}
+                          to <span className="font-mono">.env.local</span>
+                        </li>
+                        <li>Restart the dev server</li>
+                      </>
+                    ) : (
+                      <>
+                        <li>
+                          Sign up at{' '}
+                          <span className="font-mono">the-odds-api.com</span>
+                        </li>
+                        <li>Copy your API key</li>
+                        <li>
+                          Add{' '}
+                          <span className="font-mono">
+                            ODDS_API_KEY=your_key
+                          </span>{' '}
+                          to <span className="font-mono">.env.local</span>
+                        </li>
+                        <li>Restart the dev server</li>
+                      </>
+                    )}
                   </ol>
                 </div>
               )}

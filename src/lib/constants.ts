@@ -14,10 +14,9 @@ export const DEFAULT_ODDS_FORMAT = 'decimal';
 export const REFRESH_INTERVAL_MS = 60_000;
 
 // Available sport options for the dashboard selector.
-// The Odds API uses these keys. 'auto_horse_racing' is our special key
-// that triggers the horse-racing discovery logic.
+// Horse racing uses The Racing API; all other sports use The Odds API.
 export const SPORT_OPTIONS = [
-  { key: 'auto_horse_racing', label: 'Horse Racing (auto-detect)', group: 'Racing' },
+  { key: 'horse_racing', label: 'Horse Racing (UK & IRE)', group: 'Racing' },
   { key: 'soccer_epl', label: 'Soccer — EPL', group: 'Soccer' },
   { key: 'soccer_fa_cup', label: 'Soccer — FA Cup', group: 'Soccer' },
   { key: 'soccer_uefa_champs_league', label: 'Soccer — Champions League', group: 'Soccer' },
