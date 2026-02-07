@@ -1,4 +1,4 @@
-import { RacingApiRacecard, RacingApiResponse, ApiResponse, OddsApiEvent } from './types';
+import { RacingApiRacecard, ApiResponse, OddsApiEvent } from './types';
 
 const RACING_API_BASE_URL = 'https://api.theracingapi.com/v1';
 
@@ -12,8 +12,11 @@ export async function fetchRacecards(
   day: 'today' | 'tomorrow' = 'today'
 ): Promise<ApiResponse<RacingApiRacecard[]>> {
   try {
-    const credentials = Buffer.from(`${username}:${password}`).toString('base64');
+    // Use btoa instead of Buffer — works on both Node and Vercel Edge
+    const credentials = btoa(`${username}:${password}`);
     const url = `${RACING_API_BASE_URL}/racecards?day=${day}`;
+
+    console.log(`Racing API: fetching ${url}`);
 
     const response = await fetch(url, {
       headers: {
@@ -27,15 +30,44 @@ export async function fetchRacecards(
       console.error(`Racing API error: ${response.status} - ${errorText}`);
       return {
         data: null,
-        error: `Racing API error: ${response.status}${response.status === 401 ? ' (check your Racing API credentials)' : ''}`,
+        error: `Racing API error: ${response.status}${response.status === 401 ? ' — check your RACING_API_USERNAME and RACING_API_PASSWORD in Vercel env vars' : ` — ${errorText.slice(0, 200)}`}`,
       };
     }
 
-    const json: RacingApiResponse = await response.json();
-    return { data: json.racecards ?? [], error: null };
+    const json = await response.json();
+    console.log('Racing API response keys:', Object.keys(json));
+
+    // Handle different possible response shapes
+    let racecards: RacingApiRacecard[];
+    if (Array.isArray(json)) {
+      // Response is a direct array of racecards
+      racecards = json;
+    } else if (json.racecards && Array.isArray(json.racecards)) {
+      // Response is { racecards: [...] }
+      racecards = json.racecards;
+    } else {
+      // Unknown shape — log it and return what we can
+      console.log('Racing API unexpected response shape:', JSON.stringify(json).slice(0, 500));
+      racecards = [];
+    }
+
+    console.log(`Racing API: got ${racecards.length} racecards`);
+    if (racecards.length > 0) {
+      // Log the first racecard's structure to help debug odds mapping
+      const first = racecards[0];
+      console.log('Racing API first racecard keys:', Object.keys(first));
+      if (first.runners && first.runners.length > 0) {
+        console.log('Racing API first runner keys:', Object.keys(first.runners[0]));
+      }
+    }
+
+    return { data: racecards, error: null };
   } catch (err) {
     console.error('Failed to fetch racecards:', err);
-    return { data: null, error: 'Network error fetching racecards from The Racing API' };
+    return {
+      data: null,
+      error: `Network error fetching racecards: ${err instanceof Error ? err.message : String(err)}`,
+    };
   }
 }
 
@@ -47,17 +79,18 @@ export async function fetchRacecards(
 export function transformRacecardsToEvents(racecards: RacingApiRacecard[]): OddsApiEvent[] {
   return racecards.map((race) => {
     // Build a unique ID from course + date + off_time
-    const raceId = `${race.course_id}_${race.date}_${race.off_time}`.replace(/[^a-zA-Z0-9_]/g, '_');
+    const raceId = `${race.course_id || race.course}_${race.date}_${race.off_time}`.replace(/[^a-zA-Z0-9_]/g, '_');
 
     // Transform each runner's odds into the bookmaker/market/outcomes structure
     // that the existing dashboard expects.
     const bookmakerMap = new Map<string, { name: string; price: number }[]>();
 
-    for (const runner of race.runners) {
+    for (const runner of race.runners || []) {
       // Standard plan: runner.odds is a map of bookmaker -> decimal price
       if (runner.odds && typeof runner.odds === 'object') {
-        for (const [bookmaker, price] of Object.entries(runner.odds)) {
-          if (typeof price !== 'number' || price <= 0) continue;
+        for (const [bookmaker, rawPrice] of Object.entries(runner.odds)) {
+          const price = typeof rawPrice === 'number' ? rawPrice : parseFloat(String(rawPrice));
+          if (!price || price <= 0) continue;
           const existing = bookmakerMap.get(bookmaker) || [];
           existing.push({ name: runner.horse, price });
           bookmakerMap.set(bookmaker, existing);
@@ -65,7 +98,7 @@ export function transformRacecardsToEvents(racecards: RacingApiRacecard[]): Odds
       }
       // Fallback: if no bookmaker odds, use SP decimal price
       if (bookmakerMap.size === 0 && runner.sp_dec) {
-        const spPrice = parseFloat(runner.sp_dec);
+        const spPrice = parseFloat(String(runner.sp_dec));
         if (spPrice > 0) {
           const existing = bookmakerMap.get('sp') || [];
           existing.push({ name: runner.horse, price: spPrice });
