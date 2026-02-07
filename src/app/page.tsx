@@ -85,7 +85,7 @@ export default function Dashboard() {
             <p className="text-sm text-gray-500 mb-1">No events available</p>
             <p className="text-xs text-gray-400">
               {isHorseRacing
-                ? 'Horse racing data may not be available outside of race days. Try selecting a different sport (e.g. Soccer — EPL or Basketball — NBA) to verify data is flowing.'
+                ? 'No horse racing events found. If racing is scheduled today, check the server logs for discovery details. Try selecting a different sport (e.g. Soccer — EPL) to verify data is flowing.'
                 : 'No events found for this sport and region. Try a different combination.'}
             </p>
           </div>

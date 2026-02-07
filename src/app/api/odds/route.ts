@@ -39,6 +39,11 @@ export async function GET(request: NextRequest) {
     result = await fetchOdds(apiKey, sport, region);
   }
 
+  // For horse racing, log discovery issues server-side for debugging
+  if (sport === 'auto_horse_racing' && result.error) {
+    console.warn(`[odds] horse racing feed issue: ${result.error}`);
+  }
+
   return NextResponse.json({
     data: result.data,
     error: result.error,
