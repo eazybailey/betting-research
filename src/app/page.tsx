@@ -115,20 +115,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Client diagnostic — remove once odds are displaying correctly */}
-        {!isLoading && races.length > 0 && (
-          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded text-xs font-mono text-gray-700">
-            <div className="font-bold mb-1">Data diagnostic (will remove once working):</div>
-            <div>Races received: {races.length}</div>
-            <div>First race: {races[0]?.eventName}</div>
-            <div>Runners in first race: {races[0]?.runners.length}</div>
-            <div>First runner name: {races[0]?.runners[0]?.runnerName ?? 'NONE'}</div>
-            <div>First runner bestOdds: {String(races[0]?.runners[0]?.bestCurrentOdds ?? 'NULL')}</div>
-            <div>First runner bookmakerCount: {races[0]?.runners[0]?.bookmakerOdds?.length ?? 0}</div>
-            <div>First runner bestBookmaker: {races[0]?.runners[0]?.bestBookmaker ?? 'NONE'}</div>
-          </div>
-        )}
-
         {/* Race cards */}
         {races.map((race) => (
           <RaceCard key={race.eventId} race={race} settings={settings} />

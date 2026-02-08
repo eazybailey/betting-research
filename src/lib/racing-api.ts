@@ -56,8 +56,13 @@ export async function fetchRacecards(
       racecards = [];
     }
 
-    // Filter out abandoned races
-    racecards = racecards.filter((r: any) => !r.is_abandoned);
+    // Filter out abandoned races and non-UK/IRE races (no bookmaker odds for other regions)
+    racecards = racecards.filter((r: any) => {
+      if (r.is_abandoned) return false;
+      // Standard plan only has bookmaker odds for UK (GB) & Ireland (IRE)
+      const region = (r.region || '').toUpperCase();
+      return region === 'GB' || region === 'IRE';
+    });
 
     console.log(`Racing API: got ${racecards.length} racecards from ${url}`);
     if (racecards.length > 0 && racecards[0].runners?.length > 0) {

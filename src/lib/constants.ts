@@ -49,8 +49,8 @@ export const DEFAULT_SETTINGS: UserSettings = {
   kellyMode: 'half',
   kellyMultiplier: 0.5,
   maxLiabilityPct: 1.5,
-  fieldSizeMin: 8,
-  fieldSizeMax: 14,
+  fieldSizeMin: 2,
+  fieldSizeMax: 30,
 };
 
 // Compression colour thresholds (maps to tailwind classes)
