@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const day = (searchParams.get('day') || 'today') as 'today' | 'tomorrow';
+    const raw = searchParams.get('raw') === 'true';
 
     const result = await fetchRacecards(username, password, day);
 
@@ -36,6 +37,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         data: null,
         error: result.error,
+      });
+    }
+
+    // Debug mode: return raw Racing API data (first racecard + first runner)
+    // so we can see the actual field names and odds structure
+    if (raw) {
+      const firstRace = result.data[0] || null;
+      const firstRunner = firstRace?.runners?.[0] || null;
+      return NextResponse.json({
+        racecardCount: result.data.length,
+        raceKeys: firstRace ? Object.keys(firstRace) : [],
+        runnerKeys: firstRunner ? Object.keys(firstRunner) : [],
+        sampleRace: firstRace ? {
+          course: firstRace.course,
+          date: firstRace.date,
+          off_time: firstRace.off_time,
+          race_name: firstRace.race_name,
+          field_size: firstRace.field_size,
+          region: firstRace.region,
+        } : null,
+        sampleRunner: firstRunner,
+        source: 'the-racing-api',
       });
     }
 
