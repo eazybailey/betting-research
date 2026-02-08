@@ -75,11 +75,11 @@ export default function RaceCard({ race, settings }: RaceCardProps) {
           <thead>
             <tr className="text-[10px] uppercase tracking-wider text-gray-400 border-b border-gray-100">
               <th className="px-3 py-2 font-medium">Horse</th>
-              <th className="px-2 py-2 font-medium text-center">Initial</th>
-              <th className="px-2 py-2 font-medium text-center">Current Best</th>
-              <th className="px-2 py-2 font-medium text-center">Compression</th>
+              <th className="px-2 py-2 font-medium text-center">Mkt Avg</th>
+              <th className="px-2 py-2 font-medium text-center">Best Price</th>
+              <th className="px-2 py-2 font-medium text-center">Spread</th>
               <th className="px-2 py-2 font-medium text-center">Signal</th>
-              <th className="px-2 py-2 font-medium">Bookmaker</th>
+              <th className="px-2 py-2 font-medium">Best Bookie</th>
               <th className="px-2 py-2 font-medium text-right">Kelly Stake</th>
             </tr>
           </thead>
