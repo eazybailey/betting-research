@@ -65,7 +65,7 @@ export async function fetchRacecards(
       console.log('Racing API runner keys:', runnerKeys.join(', '));
     }
 
-    return { data: racecards, error: null };
+    return { data: racecards, error: null, meta: { url, status: response.status } };
   } catch (err) {
     console.error('Failed to fetch racecards:', err);
     return {

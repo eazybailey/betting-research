@@ -218,6 +218,10 @@ export interface ApiResponse<T> {
     requestsRemaining: number | null;
     requestsUsed: number | null;
   };
+  meta?: {
+    url: string;
+    status: number;
+  };
 }
 
 export interface DashboardStats {
