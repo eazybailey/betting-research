@@ -66,6 +66,27 @@ export async function GET(request: NextRequest) {
 
     const events = transformRacecardsToEvents(result.data);
 
+    // Transformed debug mode: show the first transformed event
+    // to verify bookmakers and outcomes are mapped correctly
+    const transformed = searchParams.get('transformed') === 'true';
+    if (transformed) {
+      const firstEvent = events[0] || null;
+      return NextResponse.json({
+        eventCount: events.length,
+        firstEvent: firstEvent ? {
+          id: firstEvent.id,
+          sport_title: firstEvent.sport_title,
+          home_team: firstEvent.home_team,
+          commence_time: firstEvent.commence_time,
+          bookmakerCount: firstEvent.bookmakers.length,
+          bookmakerNames: firstEvent.bookmakers.map((b) => b.title),
+          firstBookmaker: firstEvent.bookmakers[0] || null,
+          totalOutcomes: firstEvent.bookmakers[0]?.markets[0]?.outcomes?.length || 0,
+        } : null,
+        source: 'the-racing-api',
+      });
+    }
+
     return NextResponse.json({
       data: events,
       error: null,

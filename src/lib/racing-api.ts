@@ -96,43 +96,30 @@ export function transformRacecardsToEvents(racecards: RacingApiRacecard[]): Odds
 
     for (const runner of runners) {
       const horseName = runner.horse;
+      if (!horseName) continue;
+
       let hasOdds = false;
 
-      // Try all known possible odds field names from the Racing API
-      // Standard plan may use: odds, prices, bookmaker_odds, etc.
-      const oddsFields = ['odds', 'prices', 'bookmaker_odds', 'bookmakers'];
-      for (const field of oddsFields) {
-        const oddsData = runner[field];
-        if (oddsData && typeof oddsData === 'object' && !Array.isArray(oddsData)) {
-          // Object keyed by bookmaker name → decimal price
-          for (const [bookmaker, rawPrice] of Object.entries(oddsData)) {
-            const price = typeof rawPrice === 'number' ? rawPrice : parseFloat(String(rawPrice));
-            if (!price || price <= 0) continue;
-            const existing = bookmakerMap.get(bookmaker) || [];
-            existing.push({ name: horseName, price });
-            bookmakerMap.set(bookmaker, existing);
-            hasOdds = true;
-          }
-        } else if (Array.isArray(oddsData)) {
-          // Array of { bookmaker: string, price: number } or similar
-          for (const entry of oddsData) {
-            const bk = entry.bookmaker || entry.name || entry.bookie || 'unknown';
-            const rawPrice = entry.price || entry.odds || entry.decimal || entry.dec;
-            const price = typeof rawPrice === 'number' ? rawPrice : parseFloat(String(rawPrice));
-            if (!price || price <= 0) continue;
-            const existing = bookmakerMap.get(bk) || [];
-            existing.push({ name: horseName, price });
-            bookmakerMap.set(bk, existing);
-            hasOdds = true;
-          }
+      // Racing API Standard plan: runner.odds is an array of
+      // { bookmaker: "Bet365", fractional: "11/2", decimal: "6.5", ... }
+      const oddsArray = runner.odds;
+      if (Array.isArray(oddsArray) && oddsArray.length > 0) {
+        for (const entry of oddsArray) {
+          const bk = String(entry.bookmaker || 'unknown');
+          const decStr = String(entry.decimal || '');
+          const price = parseFloat(decStr);
+          if (isNaN(price) || price <= 0) continue; // skip "SP" and invalid values
+          const existing = bookmakerMap.get(bk) || [];
+          existing.push({ name: horseName, price });
+          bookmakerMap.set(bk, existing);
+          hasOdds = true;
         }
-        if (hasOdds) break;
       }
 
       // Fallback: use SP decimal if available (post-race)
       if (!hasOdds && runner.sp_dec) {
         const spPrice = parseFloat(String(runner.sp_dec));
-        if (spPrice > 0) {
+        if (!isNaN(spPrice) && spPrice > 0) {
           const existing = bookmakerMap.get('sp') || [];
           existing.push({ name: horseName, price: spPrice });
           bookmakerMap.set('sp', existing);
@@ -140,8 +127,7 @@ export function transformRacecardsToEvents(racecards: RacingApiRacecard[]): Odds
         }
       }
 
-      // Last resort: create a placeholder entry so the runner still appears
-      // in the dashboard (the pipeline creates runners from bookmaker outcomes)
+      // Last resort: create a placeholder so the runner still appears
       if (!hasOdds) {
         const existing = bookmakerMap.get('racecard') || [];
         existing.push({ name: horseName, price: 0 });
