@@ -48,7 +48,9 @@ export interface RunnerOdds {
   bookmakerOdds: BookmakerPrice[];
   bestCurrentOdds: number | null;
   bestBookmaker: string | null;
+  worstBookmaker: string | null;
   initialOdds: number | null;
+  averageOdds: number | null;
   impliedProbability: number | null;
   currentImpliedProbability: number | null;
   compressionPercent: number | null;

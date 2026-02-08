@@ -48,10 +48,23 @@ function transformEvents(
         // Find best (lowest) current odds — for lay betting, lower odds = better for us
         const sortedPrices = [...realPrices].sort((a, b) => a.price - b.price);
         const bestPrice = sortedPrices[0] ?? null;
+        const worstPrice = sortedPrices[sortedPrices.length - 1] ?? null;
 
         const currentOdds = bestPrice?.price ?? null;
+
+        // Average (consensus) odds across all bookmakers
+        const averageOdds =
+          realPrices.length > 0
+            ? realPrices.reduce((sum, p) => sum + p.price, 0) / realPrices.length
+            : null;
+
+        // Opening odds: prefer Supabase historical data, then fall back to
+        // the HIGHEST bookmaker price as a proxy for the initial/wide price.
+        // The spread between widest and tightest bookmaker represents market
+        // compression even without historical snapshots.
         const openingKey = `${event.id}::${name}`;
-        const initialOdds = openingOdds.get(openingKey) ?? currentOdds;
+        const supabaseOpening = openingOdds.get(openingKey);
+        const initialOdds = supabaseOpening ?? worstPrice?.price ?? currentOdds;
 
         const compression =
           initialOdds !== null && currentOdds !== null
@@ -68,9 +81,11 @@ function transformEvents(
           bookmakerOdds: prices,
           bestCurrentOdds: currentOdds,
           bestBookmaker: bestPrice?.bookmakerTitle ?? null,
+          worstBookmaker: worstPrice?.bookmakerTitle ?? null,
           initialOdds,
+          averageOdds,
           impliedProbability:
-            initialOdds !== null ? impliedProbability(initialOdds) * 100 : null,
+            averageOdds !== null ? impliedProbability(averageOdds) * 100 : null,
           currentImpliedProbability:
             currentOdds !== null ? impliedProbability(currentOdds) * 100 : null,
           compressionPercent: compression,

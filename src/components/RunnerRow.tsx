@@ -33,6 +33,7 @@ export default function RunnerRow({ runner, settings, muted }: RunnerRowProps) {
   }
 
   const rowBg = muted ? 'opacity-50' : colors.bg;
+  const bookmakerCount = runner.bookmakerOdds.filter((p) => p.price > 0).length;
 
   return (
     <tr className={`border-b border-gray-100 ${rowBg} hover:bg-gray-50 transition-colors`}>
@@ -43,16 +44,19 @@ export default function RunnerRow({ runner, settings, muted }: RunnerRowProps) {
         </span>
       </td>
 
-      {/* Initial odds */}
+      {/* Market average odds (consensus from all bookmakers) */}
       <td className="px-2 py-2">
         <OddsCell
-          odds={runner.initialOdds}
+          odds={runner.averageOdds}
           impliedPct={runner.impliedProbability}
           muted={muted}
         />
+        <div className="text-[9px] text-gray-400 text-center">
+          {bookmakerCount} bookies
+        </div>
       </td>
 
-      {/* Best current odds */}
+      {/* Best current odds (lowest = best for lay) */}
       <td className="px-2 py-2">
         <OddsCell
           odds={runner.bestCurrentOdds}
@@ -61,7 +65,7 @@ export default function RunnerRow({ runner, settings, muted }: RunnerRowProps) {
         />
       </td>
 
-      {/* Compression */}
+      {/* Compression (spread between widest and tightest bookmaker) */}
       <td className="px-2 py-2 text-center">
         <CompressionBadge
           compressionPercent={runner.compressionPercent}
