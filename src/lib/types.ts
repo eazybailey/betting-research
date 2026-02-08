@@ -136,7 +136,10 @@ export interface RacingApiRunner {
   number: number;
   draw: number;
   age: string;
+  sex: string;
   sex_code: string;
+  colour: string;
+  region: string;
   form: string;
   lbs: string;
   ofr: string;
@@ -146,24 +149,41 @@ export interface RacingApiRunner {
   jockey_id: string;
   trainer: string;
   trainer_id: string;
+  trainer_location: string;
+  owner: string;
+  owner_id: string;
   silk_url: string;
   sire: string;
+  sire_id: string;
   dam: string;
+  dam_id: string;
+  damsire: string;
+  damsire_id: string;
   headgear: string;
+  headgear_run: string;
   comment: string;
   spotlight: string;
+  last_run: string;
   // SP fields (available in results / post-race)
   sp?: string;
   sp_dec?: string;
-  // Bookmaker odds (Standard plan) — keyed by bookmaker name, decimal price
+  // Bookmaker odds (Standard plan) — exact field name TBD
+  // May be keyed by bookmaker name → decimal price, or array of entries
   odds?: Record<string, number>;
+  prices?: Record<string, number> | Array<{ bookmaker: string; price: number }>;
+  bookmaker_odds?: Record<string, number>;
+  bookmakers?: Record<string, number> | Array<{ bookmaker: string; price: number }>;
+  // Allow indexing for dynamic odds field detection
+  [key: string]: unknown;
 }
 
 export interface RacingApiRacecard {
+  race_id: string;
   course: string;
   course_id: string;
   date: string;
   off_time: string;
+  off_dt: string;
   race_name: string;
   distance_round: string;
   distance: string;
@@ -175,10 +195,13 @@ export interface RacingApiRacecard {
   age_band: string;
   rating_band: string;
   prize: string;
-  field_size: number;
+  field_size: string; // API returns string, not number
   going_detailed: string;
   going: string;
   surface: string;
+  race_status: string;
+  is_abandoned: boolean;
+  big_race: boolean;
   runners: RacingApiRunner[];
 }
 
