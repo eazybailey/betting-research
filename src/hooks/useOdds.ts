@@ -42,9 +42,12 @@ function transformEvents(
 
     const runners: RunnerOdds[] = Array.from(runnerMap.entries()).map(
       ([name, prices]) => {
+        // Filter out placeholder entries (price <= 0) before finding best odds
+        const realPrices = prices.filter((p) => p.price > 0);
+
         // Find best (lowest) current odds — for lay betting, lower odds = better for us
-        const sortedPrices = [...prices].sort((a, b) => a.price - b.price);
-        const bestPrice = sortedPrices[0];
+        const sortedPrices = [...realPrices].sort((a, b) => a.price - b.price);
+        const bestPrice = sortedPrices[0] ?? null;
 
         const currentOdds = bestPrice?.price ?? null;
         const openingKey = `${event.id}::${name}`;
@@ -110,6 +113,8 @@ async function saveSnapshots(events: OddsApiEvent[]): Promise<void> {
       for (const market of bookmaker.markets) {
         if (market.key !== 'h2h') continue;
         for (const outcome of market.outcomes) {
+          // Skip placeholder entries with no real odds
+          if (outcome.price <= 0) continue;
           snapshots.push({
             event_id: event.id,
             event_name: event.home_team || event.sport_title || 'Unknown',

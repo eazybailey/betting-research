@@ -46,6 +46,8 @@ export async function GET(request: NextRequest) {
       const firstRace = result.data[0] || null;
       const firstRunner = firstRace?.runners?.[0] || null;
       return NextResponse.json({
+        endpointUsed: result.meta?.url || 'unknown',
+        httpStatus: result.meta?.status || 'unknown',
         racecardCount: result.data.length,
         raceKeys: firstRace ? Object.keys(firstRace) : [],
         runnerKeys: firstRunner ? Object.keys(firstRunner) : [],
