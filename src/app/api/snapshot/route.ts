@@ -9,8 +9,9 @@ export const dynamic = 'force-dynamic';
  * Save odds snapshots to Supabase.
  * Body: { snapshots: OddsSnapshot[] }
  *
- * For each snapshot, checks if an opening snapshot exists for that event+runner.
- * If not, marks the first snapshot as is_opening = true.
+ * Uses a single batch query to check which event+runner combos already have
+ * opening snapshots, then marks new ones accordingly. Much faster than
+ * checking each snapshot individually.
  */
 export async function POST(request: NextRequest) {
   const supabase = getServiceSupabase();
@@ -33,31 +34,49 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For each snapshot, determine if it should be the opening snapshot
-    const snapshotsToInsert: OddsSnapshot[] = [];
-
-    for (const snapshot of snapshots) {
-      // Check if an opening snapshot already exists for this event+runner
-      const { data: existing } = await supabase
-        .from('odds_snapshots')
-        .select('id')
-        .eq('event_id', snapshot.event_id)
-        .eq('runner_name', snapshot.runner_name)
-        .eq('is_opening', true)
-        .limit(1);
-
-      const isOpening = !existing || existing.length === 0;
-
-      snapshotsToInsert.push({
-        ...snapshot,
-        is_opening: isOpening,
-      });
+    // Batch-fetch all existing opening snapshots in ONE query
+    // Get unique event+runner combos from the incoming snapshots
+    const uniqueKeys = new Set<string>();
+    const eventIds = new Set<string>();
+    for (const s of snapshots) {
+      uniqueKeys.add(`${s.event_id}::${s.runner_name}`);
+      eventIds.add(s.event_id);
     }
+
+    // Query all existing openings for these events at once
+    const existingOpenings = new Set<string>();
+    const { data: existingData } = await supabase
+      .from('odds_snapshots')
+      .select('event_id, runner_name')
+      .eq('is_opening', true)
+      .in('event_id', Array.from(eventIds));
+
+    if (existingData) {
+      for (const row of existingData) {
+        existingOpenings.add(`${row.event_id}::${row.runner_name}`);
+      }
+    }
+
+    // Mark snapshots: first occurrence of each event+runner gets is_opening = true
+    const openingsMarkedThisBatch = new Set<string>();
+    const snapshotsToInsert = snapshots.map((snapshot) => {
+      const key = `${snapshot.event_id}::${snapshot.runner_name}`;
+      const alreadyHasOpening = existingOpenings.has(key) || openingsMarkedThisBatch.has(key);
+
+      if (!alreadyHasOpening) {
+        openingsMarkedThisBatch.add(key);
+      }
+
+      return {
+        ...snapshot,
+        is_opening: !alreadyHasOpening,
+      };
+    });
 
     const { data, error } = await supabase
       .from('odds_snapshots')
       .insert(snapshotsToInsert)
-      .select();
+      .select('id');
 
     if (error) {
       console.error('Supabase insert error:', error);
@@ -67,7 +86,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ error: null, saved: data?.length || 0 });
+    return NextResponse.json({
+      error: null,
+      saved: data?.length || 0,
+      newOpenings: openingsMarkedThisBatch.size,
+    });
   } catch (err) {
     console.error('Snapshot save error:', err);
     return NextResponse.json(
