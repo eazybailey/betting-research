@@ -1,17 +1,8 @@
 // ============================================================
-// Core TypeScript interfaces for the Odds Aggregation Platform
+// Core TypeScript interfaces for the Racing Value Detection Platform
 // ============================================================
 
-// --- The Odds API response types ---
-
-export interface OddsApiSport {
-  key: string;
-  group: string;
-  title: string;
-  description: string;
-  active: boolean;
-  has_outrights: boolean;
-}
+// --- Common event format (Racing API transforms into this) ---
 
 export interface OddsApiOutcome {
   name: string;
@@ -166,16 +157,11 @@ export interface RacingApiRunner {
   comment: string;
   spotlight: string;
   last_run: string;
-  // SP fields (available in results / post-race)
   sp?: string;
   sp_dec?: string;
-  // Bookmaker odds (Standard plan) — exact field name TBD
-  // May be keyed by bookmaker name → decimal price, or array of entries
-  odds?: Record<string, number>;
-  prices?: Record<string, number> | Array<{ bookmaker: string; price: number }>;
-  bookmaker_odds?: Record<string, number>;
-  bookmakers?: Record<string, number> | Array<{ bookmaker: string; price: number }>;
-  // Allow indexing for dynamic odds field detection
+  // Bookmaker odds (Standard plan) — array of entries
+  odds?: Array<{ bookmaker: string; fractional: string; decimal: string; ew_places: string; ew_denom: string; updated: string }>;
+  // Allow indexing for dynamic field access
   [key: string]: unknown;
 }
 
@@ -197,7 +183,7 @@ export interface RacingApiRacecard {
   age_band: string;
   rating_band: string;
   prize: string;
-  field_size: string; // API returns string, not number
+  field_size: string;
   going_detailed: string;
   going: string;
   surface: string;
@@ -216,10 +202,6 @@ export interface RacingApiResponse {
 export interface ApiResponse<T> {
   data: T | null;
   error: string | null;
-  apiUsage?: {
-    requestsRemaining: number | null;
-    requestsUsed: number | null;
-  };
   meta?: {
     url: string;
     status: number;
@@ -229,7 +211,5 @@ export interface ApiResponse<T> {
 export interface DashboardStats {
   racesToday: number;
   valueAlerts: number;
-  requestsRemaining: number | null;
-  requestsUsed: number | null;
   lastRefreshed: string | null;
 }

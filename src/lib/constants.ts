@@ -1,41 +1,7 @@
 import { UserSettings } from './types';
 
-// The Odds API configuration
-export const ODDS_API_BASE_URL = 'https://api.the-odds-api.com/v4';
-
-// Default sport key — horse racing keys vary by region on The Odds API.
-// The /v4/sports endpoint will be used to discover the actual key at runtime.
-export const DEFAULT_SPORT_KEY = 'horse_racing';
-export const DEFAULT_REGION = 'uk';
-export const DEFAULT_MARKETS = 'h2h';
-export const DEFAULT_ODDS_FORMAT = 'decimal';
-
 // Refresh interval: 60 seconds
 export const REFRESH_INTERVAL_MS = 60_000;
-
-// Available sport options for the dashboard selector.
-// Horse racing uses The Racing API; all other sports use The Odds API.
-export const SPORT_OPTIONS = [
-  { key: 'horse_racing', label: 'Horse Racing (UK & IRE)', group: 'Racing' },
-  { key: 'soccer_epl', label: 'Soccer — EPL', group: 'Soccer' },
-  { key: 'soccer_fa_cup', label: 'Soccer — FA Cup', group: 'Soccer' },
-  { key: 'soccer_uefa_champs_league', label: 'Soccer — Champions League', group: 'Soccer' },
-  { key: 'basketball_nba', label: 'Basketball — NBA', group: 'Basketball' },
-  { key: 'americanfootball_nfl', label: 'American Football — NFL', group: 'American Football' },
-  { key: 'icehockey_nhl', label: 'Ice Hockey — NHL', group: 'Ice Hockey' },
-  { key: 'tennis_atp_french_open', label: 'Tennis — ATP', group: 'Tennis' },
-  { key: 'mma_mixed_martial_arts', label: 'MMA', group: 'Combat' },
-  { key: 'boxing_boxing', label: 'Boxing', group: 'Combat' },
-  { key: 'rugbyleague_nrl', label: 'Rugby League — NRL', group: 'Rugby' },
-] as const;
-
-// Region options
-export const REGION_OPTIONS = [
-  { key: 'uk', label: 'UK' },
-  { key: 'us', label: 'US' },
-  { key: 'eu', label: 'EU' },
-  { key: 'au', label: 'AU' },
-] as const;
 
 // Default user settings
 export const DEFAULT_SETTINGS: UserSettings = {

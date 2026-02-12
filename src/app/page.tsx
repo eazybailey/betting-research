@@ -10,15 +10,11 @@ import SettingsPanel from '@/components/SettingsPanel';
 
 export default function Dashboard() {
   const { settings, updateSettings, resetSettings } = useSettings();
-  const [sport, setSport] = useState('horse_racing');
-  const [region, setRegion] = useState('uk');
-  const { data, isLoading, isError, error, isRefetching, refetch } = useOdds(settings, sport, region);
+  const { data, isLoading, isError, error, isRefetching, refetch } = useOdds(settings);
   const [showSettings, setShowSettings] = useState(false);
 
   const races = data?.races ?? [];
   const stats = data?.stats ?? null;
-
-  const isHorseRacing = sport === 'horse_racing' || sport === 'auto_horse_racing';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -26,10 +22,6 @@ export default function Dashboard() {
         stats={stats}
         isLoading={isLoading}
         isRefetching={isRefetching}
-        sport={sport}
-        region={region}
-        onSportChange={setSport}
-        onRegionChange={setRegion}
         onRefresh={() => refetch()}
         onToggleSettings={() => setShowSettings((s) => !s)}
       />
@@ -42,7 +34,7 @@ export default function Dashboard() {
         {isLoading && (
           <div className="text-center py-20">
             <div className="inline-block w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin mb-3" />
-            <p className="text-sm text-gray-500">Loading odds data...</p>
+            <p className="text-sm text-gray-500">Loading racing data...</p>
           </div>
         )}
 
@@ -50,53 +42,29 @@ export default function Dashboard() {
         {isError && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
             <h3 className="text-sm font-semibold text-red-800 mb-1">
-              Failed to load odds
+              Failed to load racing data
             </h3>
             <p className="text-xs text-red-600">
               {error instanceof Error ? error.message : 'Unknown error'}
             </p>
             {error instanceof Error &&
-              (error.message.includes('ODDS_API_KEY') || error.message.includes('Racing API credentials')) && (
+              error.message.includes('Racing API') && (
                 <div className="mt-2 text-xs text-red-500">
                   <p className="font-medium">Setup required:</p>
                   <ol className="list-decimal ml-4 mt-1 space-y-0.5">
-                    {error.message.includes('Racing API') ? (
-                      <>
-                        <li>
-                          Sign up at{' '}
-                          <span className="font-mono">theracingapi.com</span>
-                        </li>
-                        <li>Get your username and password</li>
-                        <li>
-                          Add{' '}
-                          <span className="font-mono">
-                            RACING_API_USERNAME
-                          </span>{' '}
-                          and{' '}
-                          <span className="font-mono">
-                            RACING_API_PASSWORD
-                          </span>{' '}
-                          to Vercel Environment Variables
-                        </li>
-                        <li>Redeploy on Vercel</li>
-                      </>
-                    ) : (
-                      <>
-                        <li>
-                          Sign up at{' '}
-                          <span className="font-mono">the-odds-api.com</span>
-                        </li>
-                        <li>Copy your API key</li>
-                        <li>
-                          Add{' '}
-                          <span className="font-mono">
-                            ODDS_API_KEY
-                          </span>{' '}
-                          to Vercel Environment Variables
-                        </li>
-                        <li>Redeploy on Vercel</li>
-                      </>
-                    )}
+                    <li>
+                      Sign up at{' '}
+                      <span className="font-mono">theracingapi.com</span>
+                    </li>
+                    <li>Get your username and password</li>
+                    <li>
+                      Add{' '}
+                      <span className="font-mono">RACING_API_USERNAME</span>{' '}
+                      and{' '}
+                      <span className="font-mono">RACING_API_PASSWORD</span>{' '}
+                      to Vercel Environment Variables
+                    </li>
+                    <li>Redeploy on Vercel</li>
                   </ol>
                 </div>
               )}
@@ -106,11 +74,9 @@ export default function Dashboard() {
         {/* Empty state */}
         {!isLoading && !isError && races.length === 0 && (
           <div className="text-center py-20">
-            <p className="text-sm text-gray-500 mb-1">No events available</p>
+            <p className="text-sm text-gray-500 mb-1">No races available</p>
             <p className="text-xs text-gray-400">
-              {isHorseRacing
-                ? 'No horse racing events found. If racing is scheduled today, check the server logs for discovery details. Try selecting a different sport (e.g. Soccer — EPL) to verify data is flowing.'
-                : 'No events found for this sport and region. Try a different combination.'}
+              No UK or Ireland horse racing events found for today. Racing data updates every 3 minutes during race days.
             </p>
           </div>
         )}
