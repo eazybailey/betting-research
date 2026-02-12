@@ -40,14 +40,26 @@ export default function DashboardHeader({
             {stats && (
               <div className="hidden sm:flex items-center gap-3 text-xs text-gray-500">
                 <span>
-                  <strong className="text-gray-700">{stats.racesToday}</strong> races
+                  <strong className="text-gray-700">{stats.racesToday}</strong> today
                 </span>
+                {stats.racesTomorrow > 0 && (
+                  <>
+                    <span className="text-gray-300">|</span>
+                    <span>
+                      <strong className="text-purple-600">{stats.racesTomorrow}</strong> tomorrow
+                    </span>
+                  </>
+                )}
                 <span className="text-gray-300">|</span>
                 <span>
                   <strong className={stats.valueAlerts > 0 ? 'text-red-600' : 'text-gray-700'}>
                     {stats.valueAlerts}
                   </strong>{' '}
                   alerts
+                </span>
+                <span className="text-gray-300">|</span>
+                <span className={stats.supabaseConnected ? 'text-green-600' : 'text-amber-500'}>
+                  DB: {stats.supabaseConnected ? 'connected' : 'offline'}
                 </span>
               </div>
             )}

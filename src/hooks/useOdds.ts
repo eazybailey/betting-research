@@ -58,11 +58,12 @@ function transformEvents(
             ? realPrices.reduce((sum, p) => sum + p.price, 0) / realPrices.length
             : null;
 
-        // Opening odds: prefer Supabase historical data, then fall back to
-        // the HIGHEST bookmaker price as a proxy for the initial/wide price.
+        // Opening odds: prefer Supabase historical data (first snapshot captured),
+        // then fall back to worst bookmaker price as proxy
         const openingKey = `${event.id}::${name}`;
         const supabaseOpening = openingOdds.get(openingKey);
         const initialOdds = supabaseOpening ?? worstPrice?.price ?? currentOdds;
+        const hasDbOpening = supabaseOpening !== undefined;
 
         const compression =
           initialOdds !== null && currentOdds !== null
@@ -81,6 +82,7 @@ function transformEvents(
           bestBookmaker: bestPrice?.bookmakerTitle ?? null,
           worstBookmaker: worstPrice?.bookmakerTitle ?? null,
           initialOdds,
+          hasDbOpening,
           averageOdds,
           impliedProbability:
             averageOdds !== null ? impliedProbability(averageOdds) * 100 : null,
@@ -117,8 +119,9 @@ function transformEvents(
 
 /**
  * Save current odds as snapshots to Supabase via our API route.
+ * Returns the snapshot result for status reporting.
  */
-async function saveSnapshots(events: OddsApiEvent[]): Promise<void> {
+async function saveSnapshots(events: OddsApiEvent[]): Promise<{ saved: number; error: string | null }> {
   const snapshots: OddsSnapshot[] = [];
 
   for (const event of events) {
@@ -144,16 +147,19 @@ async function saveSnapshots(events: OddsApiEvent[]): Promise<void> {
     }
   }
 
-  if (snapshots.length === 0) return;
+  if (snapshots.length === 0) return { saved: 0, error: null };
 
   try {
-    await fetch('/api/snapshot', {
+    const res = await fetch('/api/snapshot', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ snapshots }),
     });
+    const json = await res.json();
+    return { saved: json.saved || 0, error: json.error || null };
   } catch (err) {
     console.error('Failed to save snapshots:', err);
+    return { saved: 0, error: String(err) };
   }
 }
 
@@ -172,10 +178,12 @@ async function fetchOpeningOdds(): Promise<Map<string, number>> {
     for (const row of json.data) {
       if (row.is_opening && row.back_price) {
         const key = `${row.event_id}::${row.runner_name}`;
-        // Use the lowest opening price across bookmakers
+        // Use the lowest opening price across bookmakers (best for lay)
+        const price = parseFloat(row.back_price);
+        if (isNaN(price)) continue;
         const existing = map.get(key);
-        if (!existing || row.back_price < existing) {
-          map.set(key, parseFloat(row.back_price));
+        if (!existing || price < existing) {
+          map.set(key, price);
         }
       }
     }
@@ -188,13 +196,43 @@ async function fetchOpeningOdds(): Promise<Map<string, number>> {
 
 /**
  * Fetch racing events from The Racing API.
+ * Fetches both today and tomorrow to capture early opening odds.
  */
 async function fetchEvents(): Promise<OddsApiEvent[]> {
-  const res = await fetch('/api/racing?day=today');
-  if (!res.ok) throw new Error(`Failed to fetch racing data: ${res.status}`);
-  const json = await res.json();
-  if (json.error) throw new Error(json.error);
-  return json.data || [];
+  const [todayRes, tomorrowRes] = await Promise.allSettled([
+    fetch('/api/racing?day=today'),
+    fetch('/api/racing?day=tomorrow'),
+  ]);
+
+  const allEvents: OddsApiEvent[] = [];
+
+  // Today's races
+  if (todayRes.status === 'fulfilled' && todayRes.value.ok) {
+    const json = await todayRes.value.json();
+    if (!json.error && json.data) {
+      allEvents.push(...json.data);
+    }
+  } else if (todayRes.status === 'fulfilled') {
+    // If today fetch failed with a response, throw to show error
+    const json = await todayRes.value.json().catch(() => ({ error: `HTTP ${todayRes.value.status}` }));
+    if (json.error) throw new Error(json.error);
+  } else {
+    throw new Error(`Failed to fetch racing data: ${todayRes.reason}`);
+  }
+
+  // Tomorrow's races (don't throw on failure — tomorrow data is bonus)
+  if (tomorrowRes.status === 'fulfilled' && tomorrowRes.value.ok) {
+    try {
+      const json = await tomorrowRes.value.json();
+      if (!json.error && json.data) {
+        allEvents.push(...json.data);
+      }
+    } catch {
+      // Ignore tomorrow parse errors
+    }
+  }
+
+  return allEvents;
 }
 
 /**
@@ -206,9 +244,10 @@ export function useOdds(settings: UserSettings) {
     queryFn: async () => {
       const events = await fetchEvents();
 
-      // Save snapshots to Supabase (non-blocking)
+      // Save snapshots to Supabase (non-blocking, but capture result)
+      let snapshotStatus = { saved: 0, error: null as string | null };
       if (events.length > 0) {
-        saveSnapshots(events).catch(console.error);
+        snapshotStatus = await saveSnapshots(events);
       }
 
       // Fetch opening odds from Supabase
@@ -230,9 +269,24 @@ export function useOdds(settings: UserSettings) {
         .flatMap((r) => r.runners)
         .filter((r) => r.valueSignal !== 'none').length;
 
+      const todayRaces = races.filter((r) => {
+        const raceDate = new Date(r.commenceTime).toDateString();
+        return raceDate === new Date().toDateString();
+      });
+      const tomorrowRaces = races.filter((r) => {
+        const raceDate = new Date(r.commenceTime).toDateString();
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        return raceDate === tomorrow.toDateString();
+      });
+
       const stats: DashboardStats = {
-        racesToday: races.length,
+        racesToday: todayRaces.length,
+        racesTomorrow: tomorrowRaces.length,
         valueAlerts,
+        snapshotsSaved: snapshotStatus.saved,
+        supabaseConnected: snapshotStatus.error === null && snapshotStatus.saved > 0,
+        openingOddsCount: openingOdds.size,
         lastRefreshed: new Date().toISOString(),
       };
 

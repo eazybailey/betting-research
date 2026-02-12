@@ -41,6 +41,7 @@ export interface RunnerOdds {
   bestBookmaker: string | null;
   worstBookmaker: string | null;
   initialOdds: number | null;
+  hasDbOpening: boolean;
   averageOdds: number | null;
   impliedProbability: number | null;
   currentImpliedProbability: number | null;
@@ -210,6 +211,10 @@ export interface ApiResponse<T> {
 
 export interface DashboardStats {
   racesToday: number;
+  racesTomorrow: number;
   valueAlerts: number;
+  snapshotsSaved: number;
+  supabaseConnected: boolean;
+  openingOddsCount: number;
   lastRefreshed: string | null;
 }
