@@ -4,14 +4,14 @@ import { isSupabaseConfigured } from '@/lib/supabase';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const hasOddsApiKey = Boolean(process.env.ODDS_API_KEY);
+  const hasRacingApi = Boolean(process.env.RACING_API_USERNAME && process.env.RACING_API_PASSWORD);
   const hasSupabase = isSupabaseConfigured();
 
   return NextResponse.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
     services: {
-      oddsApi: hasOddsApiKey ? 'configured' : 'missing ODDS_API_KEY',
+      racingApi: hasRacingApi ? 'configured' : 'missing RACING_API_USERNAME / RACING_API_PASSWORD',
       supabase: hasSupabase ? 'configured' : 'missing Supabase credentials',
     },
   });
