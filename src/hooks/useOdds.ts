@@ -46,29 +46,39 @@ function transformEvents(
         // Filter out placeholder entries (price <= 0) before finding best odds
         const realPrices = prices.filter((p) => p.price > 0);
 
-        // Find best (lowest) current odds — for lay betting, lower odds = better for us
+        // Find best (lowest) current odds across ALL bookmakers
         const sortedPrices = [...realPrices].sort((a, b) => a.price - b.price);
         const bestPrice = sortedPrices[0] ?? null;
         const worstPrice = sortedPrices[sortedPrices.length - 1] ?? null;
 
-        const currentOdds = bestPrice?.price ?? null;
+        // ---- BETFAIR EXCHANGE PRICE (where we actually place the lay bet) ----
+        // Match bookmaker key: "betfair_exchange" (from "Betfair Exchange".toLowerCase().replace(/\s+/g, '_'))
+        const betfairEntry = realPrices.find(
+          (p) => p.bookmaker === 'betfair_exchange' || p.bookmaker === 'betfair_ex'
+        );
+        const betfairOdds = betfairEntry?.price ?? null;
 
-        // Average (consensus) odds across all bookmakers
-        const averageOdds =
+        // Best across all bookmakers (kept for reference)
+        const bestCurrentOdds = bestPrice?.price ?? null;
+
+        // Current average (consensus) odds across ALL bookmakers
+        const currentAvgOdds =
           realPrices.length > 0
             ? realPrices.reduce((sum, p) => sum + p.price, 0) / realPrices.length
             : null;
 
-        // Opening odds: prefer Supabase historical data (first snapshot captured),
-        // then fall back to worst bookmaker price as proxy
+        // ---- OPENING AVERAGE (true market consensus for probability model) ----
+        // Prefer Supabase historical average (all bookmakers at first snapshot),
+        // then fall back to current average across all bookmakers as proxy
         const openingKey = `${event.id}::${name}`;
-        const supabaseOpening = openingOdds.get(openingKey);
-        const initialOdds = supabaseOpening ?? worstPrice?.price ?? currentOdds;
-        const hasDbOpening = supabaseOpening !== undefined;
+        const supabaseOpeningAvg = openingOdds.get(openingKey);
+        const openingAverageOdds = supabaseOpeningAvg ?? currentAvgOdds;
+        const hasDbOpening = supabaseOpeningAvg !== undefined;
 
+        // ---- COMPRESSION: Betfair Exchange vs Opening Average ----
         const compression =
-          initialOdds !== null && currentOdds !== null
-            ? priceCompression(initialOdds, currentOdds)
+          openingAverageOdds !== null && betfairOdds !== null
+            ? priceCompression(openingAverageOdds, betfairOdds)
             : null;
 
         const signal =
@@ -76,13 +86,16 @@ function transformEvents(
             ? valueSignal(compression, settings.thresholds)
             : 'none';
 
-        // Run lay engine evaluation
+        // ---- LAY ENGINE: Betfair price vs Opening Average for model ----
+        // currentOdds = Betfair Exchange (what we bet at)
+        // initialOdds = Opening average (for price shortened check)
+        // averageOdds = Opening average (for model probability)
         const layDecision = evaluateRunner({
           eventId: event.id,
           runnerName: name,
-          initialOdds,
-          currentOdds,
-          averageOdds,
+          initialOdds: openingAverageOdds,
+          currentOdds: betfairOdds,
+          averageOdds: openingAverageOdds,
           bankroll: settings.bankroll,
           commission: settings.commission,
           kellyMultiplier: settings.kellyMultiplier,
@@ -97,16 +110,18 @@ function transformEvents(
         return {
           runnerName: name,
           bookmakerOdds: prices,
-          bestCurrentOdds: currentOdds,
+          betfairOdds,
+          bestCurrentOdds,
           bestBookmaker: bestPrice?.bookmakerTitle ?? null,
           worstBookmaker: worstPrice?.bookmakerTitle ?? null,
-          initialOdds,
+          openingAverageOdds,
+          initialOdds: openingAverageOdds, // legacy compat
           hasDbOpening,
-          averageOdds,
+          averageOdds: currentAvgOdds,
           impliedProbability:
-            averageOdds !== null ? impliedProbability(averageOdds) * 100 : null,
+            openingAverageOdds !== null ? impliedProbability(openingAverageOdds) * 100 : null,
           currentImpliedProbability:
-            currentOdds !== null ? impliedProbability(currentOdds) * 100 : null,
+            betfairOdds !== null ? impliedProbability(betfairOdds) * 100 : null,
           compressionPercent: compression,
           valueSignal: signal,
           layDecision,
@@ -114,8 +129,9 @@ function transformEvents(
       }
     );
 
-    const allBestOdds = runners
-      .map((r) => r.bestCurrentOdds)
+    // Use Betfair Exchange odds for book percentage when available, fall back to best odds
+    const allBetfairOdds = runners
+      .map((r) => r.betfairOdds ?? r.bestCurrentOdds)
       .filter((o): o is number => o !== null);
 
     const runnerCount = runners.length;
@@ -131,7 +147,7 @@ function transformEvents(
       runnerCount,
       runners,
       bookPercentage:
-        allBestOdds.length > 0 ? bookPercentage(allBestOdds) : null,
+        allBetfairOdds.length > 0 ? bookPercentage(allBetfairOdds) : null,
       withinFieldSizeFilter: withinFilter,
     };
   });
@@ -185,6 +201,8 @@ async function saveSnapshots(events: OddsApiEvent[]): Promise<{ saved: number; e
 
 /**
  * Fetch opening odds from Supabase for all event+runner combos.
+ * Returns the AVERAGE price across all bookmakers at the first snapshot,
+ * which represents the true market consensus for our probability model.
  */
 async function fetchOpeningOdds(): Promise<Map<string, number>> {
   const map = new Map<string, number>();
@@ -195,17 +213,23 @@ async function fetchOpeningOdds(): Promise<Map<string, number>> {
     const json = await res.json();
     if (!json.data) return map;
 
+    // Accumulate all opening prices per event+runner for averaging
+    const pricesMap = new Map<string, number[]>();
     for (const row of json.data) {
       if (row.is_opening && row.back_price) {
         const key = `${row.event_id}::${row.runner_name}`;
-        // Use the lowest opening price across bookmakers (best for lay)
         const price = parseFloat(row.back_price);
-        if (isNaN(price)) continue;
-        const existing = map.get(key);
-        if (!existing || price < existing) {
-          map.set(key, price);
-        }
+        if (isNaN(price) || price <= 0) continue;
+        const existing = pricesMap.get(key) || [];
+        existing.push(price);
+        pricesMap.set(key, existing);
       }
+    }
+
+    // Compute average opening price per event+runner
+    for (const [key, prices] of pricesMap) {
+      const avg = prices.reduce((sum, p) => sum + p, 0) / prices.length;
+      map.set(key, avg);
     }
   } catch {
     // Supabase not available, opening odds will be null

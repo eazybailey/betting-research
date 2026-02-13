@@ -31,7 +31,7 @@ export default function DashboardHeader({
               UK &amp; Ireland Horse Racing — Value Detection
             </h1>
             <p className="text-xs text-gray-400">
-              Live odds from 30+ bookmakers via The Racing API
+              Betfair Exchange lay odds vs 30+ bookmaker opening average
             </p>
           </div>
 

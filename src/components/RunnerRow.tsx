@@ -23,14 +23,12 @@ export default function RunnerRow({ runner, settings, muted }: RunnerRowProps) {
       ? 'bg-green-50'
       : colors.bg;
 
-  const bookmakerCount = runner.bookmakerOdds.filter((p) => p.price > 0).length;
-
-  // Calculate direction arrow for price movement
+  // Calculate direction arrow: Betfair Exchange vs Opening Average
   const moveDirection =
-    runner.initialOdds !== null && runner.bestCurrentOdds !== null
-      ? runner.bestCurrentOdds < runner.initialOdds
+    runner.openingAverageOdds !== null && runner.betfairOdds !== null
+      ? runner.betfairOdds < runner.openingAverageOdds
         ? 'down'
-        : runner.bestCurrentOdds > runner.initialOdds
+        : runner.betfairOdds > runner.openingAverageOdds
           ? 'up'
           : 'flat'
       : null;
@@ -49,40 +47,35 @@ export default function RunnerRow({ runner, settings, muted }: RunnerRowProps) {
         )}
       </td>
 
-      {/* Opening odds (first captured from DB, or worst bookmaker as proxy) */}
-      <td className="px-2 py-2">
-        <div className="text-center">
-          <div className={`text-sm font-mono font-semibold ${muted ? 'text-gray-400' : 'text-gray-900'}`}>
-            {formatOdds(runner.initialOdds)}
-          </div>
-          <div className="text-[9px] text-gray-400">
-            {runner.hasDbOpening ? 'from DB' : 'est.'}
-          </div>
-        </div>
-      </td>
-
-      {/* Current best odds (lowest across all bookmakers) */}
+      {/* Opening Average (all bookmakers at first DB snapshot, or current avg as proxy) */}
       <td className="px-2 py-2">
         <OddsCell
-          odds={runner.bestCurrentOdds}
-          impliedPct={runner.currentImpliedProbability}
-          muted={muted}
-        />
-      </td>
-
-      {/* Market average odds (consensus from all bookmakers) */}
-      <td className="px-2 py-2">
-        <OddsCell
-          odds={runner.averageOdds}
+          odds={runner.openingAverageOdds}
           impliedPct={runner.impliedProbability}
           muted={muted}
         />
         <div className="text-[9px] text-gray-400 text-center">
-          {bookmakerCount} bookies
+          {runner.hasDbOpening ? 'from DB' : 'est.'}
         </div>
       </td>
 
-      {/* Price movement + edge */}
+      {/* Betfair Exchange price (where we place the lay bet) */}
+      <td className="px-2 py-2">
+        {runner.betfairOdds !== null ? (
+          <OddsCell
+            odds={runner.betfairOdds}
+            impliedPct={runner.currentImpliedProbability}
+            muted={muted}
+          />
+        ) : (
+          <div className="text-center">
+            <span className="text-xs text-gray-300">N/A</span>
+            <div className="text-[9px] text-gray-300">No Betfair</div>
+          </div>
+        )}
+      </td>
+
+      {/* Price movement: Betfair vs Opening Average + compression */}
       <td className="px-2 py-2 text-center">
         <CompressionBadge
           compressionPercent={runner.compressionPercent}
@@ -90,7 +83,7 @@ export default function RunnerRow({ runner, settings, muted }: RunnerRowProps) {
         />
         {moveDirection && (
           <div className="text-[10px] mt-0.5">
-            {moveDirection === 'down' && <span className="text-green-600" title="Price shortened">&#9660;</span>}
+            {moveDirection === 'down' && <span className="text-green-600" title="Price shortened (good for lay)">&#9660;</span>}
             {moveDirection === 'up' && <span className="text-red-500" title="Price drifted out">&#9650;</span>}
             {moveDirection === 'flat' && <span className="text-gray-400">&#8212;</span>}
           </div>
@@ -124,13 +117,6 @@ export default function RunnerRow({ runner, settings, muted }: RunnerRowProps) {
         ) : (
           <span className="text-xs text-gray-300">-</span>
         )}
-      </td>
-
-      {/* Best bookmaker */}
-      <td className="px-2 py-2">
-        <span className="text-xs text-gray-500 truncate block max-w-[100px]">
-          {runner.bestBookmaker || '-'}
-        </span>
       </td>
 
       {/* Kelly stake (from lay engine) */}

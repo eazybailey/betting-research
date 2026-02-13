@@ -37,14 +37,22 @@ export interface OddsApiEvent {
 export interface RunnerOdds {
   runnerName: string;
   bookmakerOdds: BookmakerPrice[];
+  /** Betfair Exchange price — the price we actually lay at */
+  betfairOdds: number | null;
+  /** Best (lowest) current odds across ALL bookmakers */
   bestCurrentOdds: number | null;
   bestBookmaker: string | null;
   worstBookmaker: string | null;
+  /** Opening average across all bookmakers (from DB first snapshot, or current avg as proxy) */
+  openingAverageOdds: number | null;
+  /** Legacy field — same as openingAverageOdds for backward compat */
   initialOdds: number | null;
   hasDbOpening: boolean;
+  /** Current average across all bookmakers (live market consensus) */
   averageOdds: number | null;
   impliedProbability: number | null;
   currentImpliedProbability: number | null;
+  /** Compression: betfairOdds vs openingAverageOdds */
   compressionPercent: number | null;
   valueSignal: ValueSignalLevel;
   /** Full lay decision from the lay engine */
