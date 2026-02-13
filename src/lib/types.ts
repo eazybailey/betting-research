@@ -233,5 +233,7 @@ export interface DashboardStats {
   snapshotsSaved: number;
   supabaseConnected: boolean;
   openingOddsCount: number;
+  /** Error message from snapshot save or opening fetch, if any */
+  dbError: string | null;
   lastRefreshed: string | null;
 }

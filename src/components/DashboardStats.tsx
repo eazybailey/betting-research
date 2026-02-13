@@ -34,7 +34,7 @@ export default function DashboardStats({ stats }: DashboardStatsProps) {
       color: stats.supabaseConnected ? 'text-green-600' : 'text-amber-600',
       subtitle: stats.supabaseConnected
         ? `${stats.snapshotsSaved} saved this cycle`
-        : 'Check Supabase env vars',
+        : stats.dbError ?? 'Check Supabase env vars',
     },
   ];
 

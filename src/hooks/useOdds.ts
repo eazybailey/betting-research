@@ -204,14 +204,20 @@ async function saveSnapshots(events: OddsApiEvent[]): Promise<{ saved: number; e
  * Returns the AVERAGE price across all bookmakers at the first snapshot,
  * which represents the true market consensus for our probability model.
  */
-async function fetchOpeningOdds(): Promise<Map<string, number>> {
+async function fetchOpeningOdds(): Promise<{ data: Map<string, number>; ok: boolean; error: string | null }> {
   const map = new Map<string, number>();
 
   try {
     const res = await fetch('/api/history?opening=true');
-    if (!res.ok) return map;
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      return { data: map, ok: false, error: `History API ${res.status}: ${text.slice(0, 200)}` };
+    }
     const json = await res.json();
-    if (!json.data) return map;
+    if (json.error) {
+      return { data: map, ok: false, error: json.error };
+    }
+    if (!json.data) return { data: map, ok: true, error: null };
 
     // Accumulate all opening prices per event+runner for averaging
     const pricesMap = new Map<string, number[]>();
@@ -231,11 +237,11 @@ async function fetchOpeningOdds(): Promise<Map<string, number>> {
       const avg = prices.reduce((sum, p) => sum + p, 0) / prices.length;
       map.set(key, avg);
     }
-  } catch {
-    // Supabase not available, opening odds will be null
-  }
 
-  return map;
+    return { data: map, ok: true, error: null };
+  } catch (err) {
+    return { data: map, ok: false, error: `Network error: ${err instanceof Error ? err.message : String(err)}` };
+  }
 }
 
 /**
@@ -295,7 +301,8 @@ export function useOdds(settings: UserSettings) {
       }
 
       // Fetch opening odds from Supabase
-      const openingOdds = await fetchOpeningOdds();
+      const openingResult = await fetchOpeningOdds();
+      const openingOdds = openingResult.data;
 
       // Transform into our domain model
       const races = transformEvents(events, openingOdds, settings);
@@ -327,13 +334,19 @@ export function useOdds(settings: UserSettings) {
         return raceDate === tomorrow.toDateString();
       });
 
+      // Supabase connected if either writing OR reading succeeded
+      const supabaseConnected =
+        (snapshotStatus.error === null) || openingResult.ok;
+      const dbError = snapshotStatus.error ?? openingResult.error;
+
       const stats: DashboardStats = {
         racesToday: todayRaces.length,
         racesTomorrow: tomorrowRaces.length,
         valueAlerts,
         snapshotsSaved: snapshotStatus.saved,
-        supabaseConnected: snapshotStatus.error === null && snapshotStatus.saved > 0,
+        supabaseConnected,
         openingOddsCount: openingOdds.size,
+        dbError: supabaseConnected ? null : dbError,
         lastRefreshed: new Date().toISOString(),
       };
 
