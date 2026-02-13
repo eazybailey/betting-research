@@ -138,8 +138,8 @@ export default function RaceDetailPage({
               <thead>
                 <tr className="text-[10px] uppercase tracking-wider text-gray-400 border-b border-gray-100">
                   <th className="px-3 py-2 font-medium sticky left-0 bg-white">Horse</th>
-                  <th className="px-2 py-2 font-medium text-center">Initial</th>
-                  <th className="px-2 py-2 font-medium text-center">Best</th>
+                  <th className="px-2 py-2 font-medium text-center">Opening Avg</th>
+                  <th className="px-2 py-2 font-medium text-center">Betfair</th>
                   <th className="px-2 py-2 font-medium text-center">Compression</th>
                   <th className="px-2 py-2 font-medium text-center">Signal</th>
                   {/* Get all unique bookmakers */}
@@ -174,15 +174,18 @@ export default function RaceDetailPage({
                         {runner.runnerName}
                       </td>
                       <td className="px-2 py-2 text-center font-mono">
-                        {formatOdds(runner.initialOdds)}
+                        {formatOdds(runner.openingAverageOdds)}
                         {runner.impliedProbability !== null && (
                           <div className="text-[10px] text-gray-400">
                             {formatPercent(runner.impliedProbability)}
                           </div>
                         )}
+                        <div className="text-[9px] text-gray-400">
+                          {runner.hasDbOpening ? 'DB' : 'est.'}
+                        </div>
                       </td>
-                      <td className="px-2 py-2 text-center font-mono font-semibold">
-                        {formatOdds(runner.bestCurrentOdds)}
+                      <td className={`px-2 py-2 text-center font-mono font-semibold ${runner.betfairOdds === null ? 'text-gray-300' : ''}`}>
+                        {runner.betfairOdds !== null ? formatOdds(runner.betfairOdds) : 'N/A'}
                       </td>
                       <td className="px-2 py-2 text-center">
                         <CompressionBadge
@@ -197,13 +200,14 @@ export default function RaceDetailPage({
                         const price = runner.bookmakerOdds.find(
                           (b) => b.bookmakerTitle === bm
                         );
+                        const isBetfair = price?.bookmaker === 'betfair_exchange' || price?.bookmaker === 'betfair_ex';
                         const isBest =
                           price && runner.bestCurrentOdds === price.price;
                         return (
                           <td
                             key={bm}
                             className={`px-2 py-2 text-center font-mono text-xs ${
-                              isBest ? 'font-bold text-blue-600' : 'text-gray-500'
+                              isBetfair ? 'font-bold text-green-700 bg-green-50' : isBest ? 'font-bold text-blue-600' : 'text-gray-500'
                             }`}
                           >
                             {price ? formatOdds(price.price) : '-'}
@@ -253,8 +257,8 @@ export default function RaceDetailPage({
           {/* Kelly calculator */}
           <KellyCalculator
             settings={settings}
-            initialOdds={valueRunner?.initialOdds ?? undefined}
-            currentLayOdds={valueRunner?.bestCurrentOdds ?? undefined}
+            initialOdds={valueRunner?.openingAverageOdds ?? undefined}
+            currentLayOdds={valueRunner?.betfairOdds ?? undefined}
           />
 
           {/* Notes */}
