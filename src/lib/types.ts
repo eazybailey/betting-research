@@ -47,6 +47,8 @@ export interface RunnerOdds {
   currentImpliedProbability: number | null;
   compressionPercent: number | null;
   valueSignal: ValueSignalLevel;
+  /** Full lay decision from the lay engine */
+  layDecision: import('./lay-engine').LayDecision | null;
 }
 
 export interface BookmakerPrice {
@@ -101,9 +103,16 @@ export interface UserSettings {
   maxLiabilityPct: number;
   fieldSizeMin: number;
   fieldSizeMax: number;
+  /** Exchange commission rate (e.g. 0.05 for Betfair 5%) */
+  commission: number;
+  /** Minimum exchange stake in currency */
+  minStake: number;
+  /** Probability model calibration: P(win) = 1/(1 + alpha*(O-1)^beta) */
+  modelAlpha: number;
+  modelBeta: number;
 }
 
-// --- Kelly Calculator types ---
+// --- Kelly Calculator types (legacy — use LayDecision from lay-engine.ts) ---
 
 export interface KellyParams {
   bankroll: number;

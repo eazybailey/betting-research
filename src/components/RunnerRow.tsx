@@ -1,11 +1,10 @@
 'use client';
 
-import { RunnerOdds, UserSettings, KellyResult } from '@/lib/types';
+import { RunnerOdds, UserSettings } from '@/lib/types';
 import { COMPRESSION_COLORS } from '@/lib/constants';
-import { kellyLayStake, impliedProbability, formatOdds } from '@/lib/calculations';
+import { formatOdds } from '@/lib/calculations';
 import OddsCell from './OddsCell';
 import CompressionBadge from './CompressionBadge';
-import ValueAlert from './ValueAlert';
 
 interface RunnerRowProps {
   runner: RunnerOdds;
@@ -15,24 +14,15 @@ interface RunnerRowProps {
 
 export default function RunnerRow({ runner, settings, muted }: RunnerRowProps) {
   const colors = COMPRESSION_COLORS[runner.valueSignal];
+  const ld = runner.layDecision;
+  const kelly = ld?.kelly;
 
-  // Calculate Kelly stake if value signal is active and we have the data
-  let kelly: KellyResult | null = null;
-  if (
-    runner.valueSignal !== 'none' &&
-    runner.initialOdds !== null &&
-    runner.bestCurrentOdds !== null
-  ) {
-    kelly = kellyLayStake({
-      bankroll: settings.bankroll,
-      trueProb: impliedProbability(runner.initialOdds),
-      currentLayOdds: runner.bestCurrentOdds,
-      kellyMultiplier: settings.kellyMultiplier,
-      maxLiabilityPct: settings.maxLiabilityPct,
-    });
-  }
+  const rowBg = muted
+    ? 'opacity-50'
+    : ld?.placeLay
+      ? 'bg-green-50'
+      : colors.bg;
 
-  const rowBg = muted ? 'opacity-50' : colors.bg;
   const bookmakerCount = runner.bookmakerOdds.filter((p) => p.price > 0).length;
 
   // Calculate direction arrow for price movement
@@ -52,6 +42,11 @@ export default function RunnerRow({ runner, settings, muted }: RunnerRowProps) {
         <span className={`text-sm font-medium ${muted ? 'text-gray-400' : 'text-gray-900'}`}>
           {runner.runnerName}
         </span>
+        {ld?.pModel !== null && ld?.pModel !== undefined && (
+          <div className="text-[9px] text-gray-400">
+            Model: {(ld.pModel * 100).toFixed(1)}%
+          </div>
+        )}
       </td>
 
       {/* Opening odds (first captured from DB, or worst bookmaker as proxy) */}
@@ -87,7 +82,7 @@ export default function RunnerRow({ runner, settings, muted }: RunnerRowProps) {
         </div>
       </td>
 
-      {/* Price movement (compression from opening to current) */}
+      {/* Price movement + edge */}
       <td className="px-2 py-2 text-center">
         <CompressionBadge
           compressionPercent={runner.compressionPercent}
@@ -95,16 +90,40 @@ export default function RunnerRow({ runner, settings, muted }: RunnerRowProps) {
         />
         {moveDirection && (
           <div className="text-[10px] mt-0.5">
-            {moveDirection === 'down' && <span className="text-green-600" title="Price shortened (drifted in)">&#9660;</span>}
+            {moveDirection === 'down' && <span className="text-green-600" title="Price shortened">&#9660;</span>}
             {moveDirection === 'up' && <span className="text-red-500" title="Price drifted out">&#9650;</span>}
             {moveDirection === 'flat' && <span className="text-gray-400">&#8212;</span>}
           </div>
         )}
       </td>
 
-      {/* Value signal */}
+      {/* Lay Decision + EV */}
       <td className="px-2 py-2 text-center">
-        <ValueAlert signal={runner.valueSignal} />
+        {ld?.placeLay ? (
+          <div>
+            <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-800">
+              LAY
+            </span>
+            {ld.ev !== null && (
+              <div className="text-[9px] text-green-600 mt-0.5">
+                EV: £{ld.ev.toFixed(2)}
+              </div>
+            )}
+          </div>
+        ) : ld?.edge !== null && ld?.edge !== undefined ? (
+          <div>
+            <span className="text-[10px] text-gray-400">
+              Edge: {(ld.edge * 100).toFixed(1)}%
+            </span>
+            {ld.reasons.length > 0 && !ld.reasons.includes('PLACE LAY') && (
+              <div className="text-[9px] text-gray-300 mt-0.5 truncate max-w-[80px]" title={ld.reasons.join(', ')}>
+                {ld.reasons[0]}
+              </div>
+            )}
+          </div>
+        ) : (
+          <span className="text-xs text-gray-300">-</span>
+        )}
       </td>
 
       {/* Best bookmaker */}
@@ -114,7 +133,7 @@ export default function RunnerRow({ runner, settings, muted }: RunnerRowProps) {
         </span>
       </td>
 
-      {/* Kelly stake */}
+      {/* Kelly stake (from lay engine) */}
       <td className="px-2 py-2 text-right">
         {kelly && kelly.layStake > 0 ? (
           <div className="text-xs">
@@ -126,6 +145,9 @@ export default function RunnerRow({ runner, settings, muted }: RunnerRowProps) {
               {kelly.cappedByMaxLiability && (
                 <span className="text-amber-500 ml-1" title="Capped by max liability">cap</span>
               )}
+            </div>
+            <div className="text-[9px] text-gray-400">
+              +£{kelly.profitIfLoses.toFixed(2)} / -£{kelly.lossIfWins.toFixed(2)}
             </div>
           </div>
         ) : (

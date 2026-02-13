@@ -44,7 +44,49 @@ export default function SettingsPanel({
             />
           </div>
 
-          {/* Thresholds */}
+          {/* Exchange Settings */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+              Exchange Settings
+            </label>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 w-28">Commission</span>
+                <input
+                  type="number"
+                  value={settings.commission * 100}
+                  onChange={(e) =>
+                    onUpdate({ commission: (parseFloat(e.target.value) || 0) / 100 })
+                  }
+                  className="flex-1 px-3 py-1.5 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  min={0}
+                  max={20}
+                  step={0.5}
+                />
+                <span className="text-xs text-gray-400">%</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 w-28">Min Stake</span>
+                <input
+                  type="number"
+                  value={settings.minStake}
+                  onChange={(e) =>
+                    onUpdate({ minStake: parseFloat(e.target.value) || 0 })
+                  }
+                  className="flex-1 px-3 py-1.5 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  min={0}
+                  max={100}
+                  step={1}
+                />
+                <span className="text-xs text-gray-400">£</span>
+              </div>
+            </div>
+            <p className="text-[10px] text-gray-400 mt-1">
+              Betfair: 5% commission, £2 min stake
+            </p>
+          </div>
+
+          {/* Compression Thresholds */}
           <div>
             <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
               Compression Thresholds (%)
@@ -84,7 +126,10 @@ export default function SettingsPanel({
               {(['full', 'half', 'custom'] as const).map((mode) => (
                 <button
                   key={mode}
-                  onClick={() => onUpdate({ kellyMode: mode })}
+                  onClick={() => {
+                    const multiplier = mode === 'full' ? 1 : mode === 'half' ? 0.5 : settings.kellyMultiplier;
+                    onUpdate({ kellyMode: mode, kellyMultiplier: multiplier });
+                  }}
                   className={`flex-1 px-3 py-1.5 text-xs rounded border transition-colors ${
                     settings.kellyMode === mode
                       ? 'bg-blue-50 border-blue-200 text-blue-700 font-semibold'
@@ -126,8 +171,8 @@ export default function SettingsPanel({
               }
               className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
               min={0}
-              max={10}
-              step={0.1}
+              max={25}
+              step={0.5}
             />
           </div>
 
@@ -159,6 +204,46 @@ export default function SettingsPanel({
                 min={1}
                 max={30}
               />
+            </div>
+          </div>
+
+          {/* Probability Model */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+              Probability Model
+            </label>
+            <p className="text-[10px] text-gray-400 mb-2">
+              P(win) = 1 / (1 + alpha * (O-1)^beta). Default alpha=1, beta=1 uses raw implied probability.
+            </p>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 w-16">Alpha</span>
+                <input
+                  type="number"
+                  value={settings.modelAlpha}
+                  onChange={(e) =>
+                    onUpdate({ modelAlpha: parseFloat(e.target.value) || 1 })
+                  }
+                  className="flex-1 px-3 py-1.5 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  min={0.01}
+                  max={10}
+                  step={0.01}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 w-16">Beta</span>
+                <input
+                  type="number"
+                  value={settings.modelBeta}
+                  onChange={(e) =>
+                    onUpdate({ modelBeta: parseFloat(e.target.value) || 1 })
+                  }
+                  className="flex-1 px-3 py-1.5 border border-gray-200 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  min={0.01}
+                  max={5}
+                  step={0.01}
+                />
+              </div>
             </div>
           </div>
 
