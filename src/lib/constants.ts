@@ -14,9 +14,13 @@ export const DEFAULT_SETTINGS: UserSettings = {
   },
   kellyMode: 'half',
   kellyMultiplier: 0.5,
-  maxLiabilityPct: 1.5,
+  maxLiabilityPct: 5,
   fieldSizeMin: 2,
   fieldSizeMax: 30,
+  commission: 0.05,       // Betfair 5% commission
+  minStake: 2,            // Betfair minimum £2 stake
+  modelAlpha: 1.0,        // Calibration alpha (1.0 = raw implied prob)
+  modelBeta: 1.0,         // Calibration beta (1.0 = no adjustment)
 };
 
 // Compression colour thresholds (maps to tailwind classes)

@@ -24,7 +24,10 @@ export default function RaceCard({ race, settings }: RaceCardProps) {
 
   const isTomorrow = new Date(race.commenceTime).toDateString() !== new Date().toDateString();
   const isMuted = !race.withinFieldSizeFilter;
-  const valueRunners = race.runners.filter((r) => r.valueSignal !== 'none');
+  const layRunners = race.runners.filter((r) => r.layDecision?.placeLay);
+  const valueRunners = layRunners.length > 0
+    ? layRunners
+    : race.runners.filter((r) => r.valueSignal !== 'none');
 
   return (
     <div
@@ -87,7 +90,7 @@ export default function RaceCard({ race, settings }: RaceCardProps) {
               <th className="px-2 py-2 font-medium text-center">Current</th>
               <th className="px-2 py-2 font-medium text-center">Mkt Avg</th>
               <th className="px-2 py-2 font-medium text-center">Move</th>
-              <th className="px-2 py-2 font-medium text-center">Signal</th>
+              <th className="px-2 py-2 font-medium text-center">Lay / EV</th>
               <th className="px-2 py-2 font-medium">Best Bookie</th>
               <th className="px-2 py-2 font-medium text-right">Kelly Stake</th>
             </tr>

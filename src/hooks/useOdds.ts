@@ -9,6 +9,7 @@ import {
   valueSignal,
   bookPercentage,
 } from '@/lib/calculations';
+import { evaluateRunner } from '@/lib/lay-engine';
 import { REFRESH_INTERVAL_MS } from '@/lib/constants';
 
 /**
@@ -75,6 +76,24 @@ function transformEvents(
             ? valueSignal(compression, settings.thresholds)
             : 'none';
 
+        // Run lay engine evaluation
+        const layDecision = evaluateRunner({
+          eventId: event.id,
+          runnerName: name,
+          initialOdds,
+          currentOdds,
+          averageOdds,
+          bankroll: settings.bankroll,
+          commission: settings.commission,
+          kellyMultiplier: settings.kellyMultiplier,
+          maxLiabilityPct: settings.maxLiabilityPct,
+          minStake: settings.minStake,
+          modelParams: {
+            alpha: settings.modelAlpha,
+            beta: settings.modelBeta,
+          },
+        });
+
         return {
           runnerName: name,
           bookmakerOdds: prices,
@@ -90,6 +109,7 @@ function transformEvents(
             currentOdds !== null ? impliedProbability(currentOdds) * 100 : null,
           compressionPercent: compression,
           valueSignal: signal,
+          layDecision,
         };
       }
     );
@@ -265,7 +285,10 @@ export function useOdds(settings: UserSettings) {
       });
 
       // Calculate dashboard stats
-      const valueAlerts = races
+      const layAlerts = races
+        .flatMap((r) => r.runners)
+        .filter((r) => r.layDecision?.placeLay).length;
+      const valueAlerts = layAlerts || races
         .flatMap((r) => r.runners)
         .filter((r) => r.valueSignal !== 'none').length;
 
