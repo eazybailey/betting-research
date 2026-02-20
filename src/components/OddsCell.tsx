@@ -23,8 +23,11 @@ export default function OddsCell({ odds, impliedPct, label, muted }: OddsCellPro
         {formatOdds(odds)}
       </div>
       {impliedPct !== null && (
-        <div className="text-[10px] text-gray-400">
-          {formatPercent(impliedPct)}
+        <div
+          className="text-[10px] text-gray-400 cursor-help"
+          title={`Implied probability: 1 ÷ ${formatOdds(odds)} = ${formatPercent(impliedPct)}. This is the market's implied chance of winning based on the odds.`}
+        >
+          {formatPercent(impliedPct)} win prob
         </div>
       )}
     </div>

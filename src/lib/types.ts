@@ -50,6 +50,10 @@ export interface RunnerOdds {
   hasDbOpening: boolean;
   /** Current average across all bookmakers (live market consensus) */
   averageOdds: number | null;
+  /** Number of bookmakers with real odds for this runner */
+  bookmakerCount: number;
+  /** Odds spread: [lowest, highest] across bookmakers */
+  oddsSpread: [number, number] | null;
   impliedProbability: number | null;
   currentImpliedProbability: number | null;
   /** Compression: betfairOdds vs openingAverageOdds */
@@ -77,6 +81,8 @@ export interface Race {
   runners: RunnerOdds[];
   bookPercentage: number | null;
   withinFieldSizeFilter: boolean;
+  /** Race result: winner name and positions (null if race hasn't run yet) */
+  result: RaceResult | null;
 }
 
 export interface OddsSnapshot {
@@ -213,6 +219,70 @@ export interface RacingApiRacecard {
 
 export interface RacingApiResponse {
   racecards: RacingApiRacecard[];
+}
+
+// --- Racing API results types ---
+
+export interface RacingApiResultRunner {
+  horse_id: string;
+  horse: string;
+  position: string;
+  sp: string;
+  sp_dec: string;
+  number: number;
+  draw: number;
+  btn: string;
+  over_btn: string;
+  age: string;
+  sex: string;
+  weight: string;
+  weight_lbs: string;
+  headgear: string;
+  time: string;
+  prize: string;
+  jockey: string;
+  jockey_id: string;
+  trainer: string;
+  trainer_id: string;
+  owner: string;
+  owner_id: string;
+  or: string;
+  sire: string;
+  sire_id: string;
+  dam: string;
+  dam_id: string;
+  damsire: string;
+  damsire_id: string;
+  [key: string]: unknown;
+}
+
+export interface RacingApiResult {
+  race_id: string;
+  course: string;
+  course_id: string;
+  date: string;
+  off_time: string;
+  off_dt?: string;
+  race_name: string;
+  distance_round: string;
+  distance: string;
+  distance_f: string;
+  region: string;
+  pattern: string;
+  race_class: string;
+  type: string;
+  going: string;
+  runners: RacingApiResultRunner[];
+}
+
+/** Simplified result for a single race: winner + positions */
+export interface RaceResult {
+  /** Winner horse name (position "1") */
+  winner: string | null;
+  /** All runner positions: horse name → finishing position */
+  positions: Map<string, string>;
+  /** Whether result data was found for this race */
+  hasResult: boolean;
 }
 
 // --- API response wrapper ---

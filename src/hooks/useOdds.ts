@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { OddsApiEvent, Race, RunnerOdds, BookmakerPrice, OddsSnapshot, DashboardStats } from '@/lib/types';
+import { OddsApiEvent, Race, RunnerOdds, BookmakerPrice, OddsSnapshot, DashboardStats, RaceResult } from '@/lib/types';
 import { UserSettings } from '@/lib/types';
 import {
   impliedProbability,
@@ -19,7 +19,8 @@ import { REFRESH_INTERVAL_MS } from '@/lib/constants';
 function transformEvents(
   events: OddsApiEvent[],
   openingOdds: Map<string, number>,
-  settings: UserSettings
+  settings: UserSettings,
+  resultsMap: Map<string, { winner: string | null; positions: Map<string, string> }>
 ): Race[] {
   return events.map((event) => {
     // Collect all unique runner names across all bookmakers
@@ -107,6 +108,19 @@ function transformEvents(
           },
         });
 
+        // Bookmaker count and spread (excluding Betfair Exchange and placeholders)
+        const nonExchangePrices = realPrices.filter(
+          (p) => p.bookmaker !== 'betfair_exchange' && p.bookmaker !== 'betfair_ex'
+        );
+        const bookmakerCount = nonExchangePrices.length;
+        const oddsSpread: [number, number] | null =
+          nonExchangePrices.length >= 2
+            ? [
+                Math.min(...nonExchangePrices.map((p) => p.price)),
+                Math.max(...nonExchangePrices.map((p) => p.price)),
+              ]
+            : null;
+
         return {
           runnerName: name,
           bookmakerOdds: prices,
@@ -118,6 +132,8 @@ function transformEvents(
           initialOdds: openingAverageOdds, // legacy compat
           hasDbOpening,
           averageOdds: currentAvgOdds,
+          bookmakerCount,
+          oddsSpread,
           impliedProbability:
             openingAverageOdds !== null ? impliedProbability(openingAverageOdds) * 100 : null,
           currentImpliedProbability:
@@ -139,6 +155,16 @@ function transformEvents(
       runnerCount >= settings.fieldSizeMin &&
       runnerCount <= settings.fieldSizeMax;
 
+    // Match results for this race
+    const resultData = resultsMap.get(event.id);
+    const result: RaceResult | null = resultData
+      ? {
+          winner: resultData.winner,
+          positions: resultData.positions,
+          hasResult: resultData.positions.size > 0,
+        }
+      : null;
+
     return {
       eventId: event.id,
       eventName: event.home_team || event.sport_title || 'Unknown Race',
@@ -149,6 +175,7 @@ function transformEvents(
       bookPercentage:
         allBetfairOdds.length > 0 ? bookPercentage(allBetfairOdds) : null,
       withinFieldSizeFilter: withinFilter,
+      result,
     };
   });
 }
@@ -284,6 +311,47 @@ async function fetchEvents(): Promise<OddsApiEvent[]> {
 }
 
 /**
+ * Fetch race results from The Racing API.
+ * Returns a map of raceId → { winner, positions }.
+ */
+async function fetchRaceResults(): Promise<Map<string, { winner: string | null; positions: Map<string, string> }>> {
+  const map = new Map<string, { winner: string | null; positions: Map<string, string> }>();
+
+  try {
+    const res = await fetch('/api/results?day=today');
+    if (!res.ok) return map;
+    const json = await res.json();
+    if (!json.data || !Array.isArray(json.data)) return map;
+
+    for (const race of json.data) {
+      // Build race ID the same way as transformRacecardsToEvents
+      const raceId = (race.race_id || `${race.course_id || race.course}_${race.date}_${race.off_time}`)
+        .replace(/[^a-zA-Z0-9_]/g, '_');
+
+      const positions = new Map<string, string>();
+      let winner: string | null = null;
+
+      for (const runner of race.runners || []) {
+        const horseName = runner.horse;
+        const pos = String(runner.position || '').trim();
+        if (horseName && pos) {
+          positions.set(horseName, pos);
+          if (pos === '1') {
+            winner = horseName;
+          }
+        }
+      }
+
+      map.set(raceId, { winner, positions });
+    }
+  } catch {
+    // Results not available — not critical
+  }
+
+  return map;
+}
+
+/**
  * Main hook: fetches odds from Racing API, saves snapshots, and transforms data.
  */
 export function useOdds(settings: UserSettings) {
@@ -298,12 +366,15 @@ export function useOdds(settings: UserSettings) {
         snapshotStatus = await saveSnapshots(events);
       }
 
-      // Fetch opening odds from Supabase (also serves as connectivity check)
-      const openingResult = await fetchOpeningOdds();
+      // Fetch opening odds and race results in parallel
+      const [openingResult, resultsMap] = await Promise.all([
+        fetchOpeningOdds(),
+        fetchRaceResults(),
+      ]);
       const openingOdds = openingResult.data;
 
       // Transform into our domain model
-      const races = transformEvents(events, openingOdds, settings);
+      const races = transformEvents(events, openingOdds, settings, resultsMap);
 
       // Sort: races within field-size filter first, then by commence time
       races.sort((a, b) => {

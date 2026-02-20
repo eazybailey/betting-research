@@ -1,4 +1,4 @@
-import { RacingApiRacecard, ApiResponse, OddsApiEvent } from './types';
+import { RacingApiRacecard, RacingApiResult, ApiResponse, OddsApiEvent } from './types';
 
 const RACING_API_BASE_URL = 'https://api.theracingapi.com/v1';
 
@@ -78,6 +78,92 @@ export async function fetchRacecards(
       error: `Network error fetching racecards: ${err instanceof Error ? err.message : String(err)}`,
     };
   }
+}
+
+/**
+ * Fetch today's results from The Racing API.
+ * Returns results with runner positions and starting prices.
+ * Uses /v1/results?day=today endpoint.
+ */
+export async function fetchResults(
+  username: string,
+  password: string,
+  day: 'today' | 'tomorrow' = 'today'
+): Promise<ApiResponse<RacingApiResult[]>> {
+  try {
+    const credentials = btoa(`${username}:${password}`);
+    const url = `${RACING_API_BASE_URL}/results?day=${day}`;
+    console.log(`Racing API: fetching results from ${url}`);
+
+    const response = await fetch(url, {
+      headers: { Authorization: `Basic ${credentials}` },
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Racing API results error: ${response.status} - ${errorText}`);
+      return { data: null, error: `Racing API results error: ${response.status}` };
+    }
+
+    const json = await response.json();
+
+    let results: RacingApiResult[];
+    if (Array.isArray(json)) {
+      results = json;
+    } else if (json.results && Array.isArray(json.results)) {
+      results = json.results;
+    } else {
+      console.log('Racing API results unexpected shape:', JSON.stringify(json).slice(0, 500));
+      results = [];
+    }
+
+    // Filter to UK/IRE
+    results = results.filter((r: any) => {
+      const region = (r.region || '').toUpperCase();
+      return region === 'GB' || region === 'IRE';
+    });
+
+    console.log(`Racing API: got ${results.length} results`);
+    return { data: results, error: null, meta: { url, status: response.status } };
+  } catch (err) {
+    console.error('Failed to fetch results:', err);
+    return {
+      data: null,
+      error: `Network error fetching results: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+}
+
+/**
+ * Build a map of race_id → RaceResult from results data.
+ * Used to match results to racecard events.
+ */
+export function buildResultsMap(results: RacingApiResult[]): Map<string, { winner: string | null; positions: Map<string, string> }> {
+  const map = new Map<string, { winner: string | null; positions: Map<string, string> }>();
+
+  for (const race of results) {
+    const raceId = (race.race_id || `${race.course_id || race.course}_${race.date}_${race.off_time}`)
+      .replace(/[^a-zA-Z0-9_]/g, '_');
+
+    const positions = new Map<string, string>();
+    let winner: string | null = null;
+
+    for (const runner of race.runners || []) {
+      const horseName = runner.horse;
+      const pos = String(runner.position || '').trim();
+      if (horseName && pos) {
+        positions.set(horseName, pos);
+        if (pos === '1') {
+          winner = horseName;
+        }
+      }
+    }
+
+    map.set(raceId, { winner, positions });
+  }
+
+  return map;
 }
 
 /**
