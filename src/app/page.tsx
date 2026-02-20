@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useOdds } from '@/hooks/useOdds';
 import { useSettings } from '@/hooks/useSettings';
 import DashboardHeader from '@/components/DashboardHeader';
@@ -8,13 +8,31 @@ import DashboardStats from '@/components/DashboardStats';
 import RaceCard from '@/components/RaceCard';
 import SettingsPanel from '@/components/SettingsPanel';
 
+type DayTab = 'today' | 'tomorrow';
+
 export default function Dashboard() {
   const { settings, updateSettings, resetSettings } = useSettings();
   const { data, isLoading, isError, error, isRefetching, refetch } = useOdds(settings);
   const [showSettings, setShowSettings] = useState(false);
+  const [activeTab, setActiveTab] = useState<DayTab>('today');
 
-  const races = data?.races ?? [];
+  const races = useMemo(() => data?.races ?? [], [data?.races]);
   const stats = data?.stats ?? null;
+
+  // Split races into today and tomorrow
+  const { todayRaces, tomorrowRaces } = useMemo(() => {
+    const today = new Date().toDateString();
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toDateString();
+
+    return {
+      todayRaces: races.filter((r) => new Date(r.commenceTime).toDateString() === today),
+      tomorrowRaces: races.filter((r) => new Date(r.commenceTime).toDateString() === tomorrowStr),
+    };
+  }, [races]);
+
+  const displayedRaces = activeTab === 'today' ? todayRaces : tomorrowRaces;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -29,6 +47,38 @@ export default function Dashboard() {
       <main className="max-w-7xl mx-auto px-4 py-4">
         {/* Stats bar */}
         {stats && <DashboardStats stats={stats} />}
+
+        {/* Day tabs */}
+        {!isLoading && !isError && races.length > 0 && (
+          <div className="flex gap-1 mb-4 bg-white rounded-lg border border-gray-200 p-1 w-fit">
+            <button
+              onClick={() => setActiveTab('today')}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                activeTab === 'today'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              Today
+              <span className={`ml-1.5 text-xs ${activeTab === 'today' ? 'text-blue-200' : 'text-gray-400'}`}>
+                {todayRaces.length}
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab('tomorrow')}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                activeTab === 'tomorrow'
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              Tomorrow
+              <span className={`ml-1.5 text-xs ${activeTab === 'tomorrow' ? 'text-purple-200' : 'text-gray-400'}`}>
+                {tomorrowRaces.length}
+              </span>
+            </button>
+          </div>
+        )}
 
         {/* Loading state */}
         {isLoading && (
@@ -72,17 +122,21 @@ export default function Dashboard() {
         )}
 
         {/* Empty state */}
-        {!isLoading && !isError && races.length === 0 && (
+        {!isLoading && !isError && displayedRaces.length === 0 && (
           <div className="text-center py-20">
-            <p className="text-sm text-gray-500 mb-1">No races available</p>
+            <p className="text-sm text-gray-500 mb-1">
+              No {activeTab === 'tomorrow' ? 'tomorrow' : 'today'}&apos;s races available
+            </p>
             <p className="text-xs text-gray-400">
-              No UK or Ireland horse racing events found for today. Racing data updates every 3 minutes during race days.
+              {activeTab === 'today'
+                ? 'No UK or Ireland horse racing events found for today. Racing data updates every 3 minutes during race days.'
+                : 'Tomorrow\'s racecards may not be available yet. Check back later.'}
             </p>
           </div>
         )}
 
         {/* Race cards */}
-        {races.map((race) => (
+        {displayedRaces.map((race) => (
           <RaceCard key={race.eventId} race={race} settings={settings} />
         ))}
       </main>

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useOdds } from '@/hooks/useOdds';
 import { useSnapshots } from '@/hooks/useSnapshots';
 import { useSettings } from '@/hooks/useSettings';
-import { formatOdds, formatPercent, impliedProbability } from '@/lib/calculations';
+import { formatOdds, formatPercent } from '@/lib/calculations';
 import KellyCalculator from '@/components/KellyCalculator';
 import CompressionBadge from '@/components/CompressionBadge';
 import ValueAlert from '@/components/ValueAlert';
@@ -122,6 +122,12 @@ export default function RaceDetailPage({
                 {raceTime} &middot; {race.runnerCount} runners &middot;{' '}
                 {race.bookPercentage !== null && `Book: ${formatPercent(race.bookPercentage)}`}
               </p>
+              {race.result?.winner && (
+                <p className="text-xs mt-1">
+                  <span className="text-gray-400">Winner: </span>
+                  <span className="font-bold text-green-700">{race.result.winner}</span>
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -180,8 +186,13 @@ export default function RaceDetailPage({
                             {formatPercent(runner.impliedProbability)}
                           </div>
                         )}
-                        <div className="text-[9px] text-gray-400">
-                          {runner.hasDbOpening ? 'DB' : 'est.'}
+                        <div className="text-[9px]">
+                          <span className={runner.hasDbOpening ? 'text-green-500' : 'text-amber-500'}>
+                            {runner.hasDbOpening ? 'from DB' : 'live estimate'}
+                          </span>
+                          <span className="text-gray-300 ml-1">
+                            ({runner.bookmakerCount} bk{runner.bookmakerCount !== 1 ? 's' : ''})
+                          </span>
                         </div>
                       </td>
                       <td className={`px-2 py-2 text-center font-mono font-semibold ${runner.betfairOdds === null ? 'text-gray-300' : ''}`}>
