@@ -203,39 +203,43 @@ async function saveSnapshots(events: OddsApiEvent[]): Promise<{ saved: number; e
  * Fetch opening odds from Supabase for all event+runner combos.
  * Returns the AVERAGE price across all bookmakers at the first snapshot,
  * which represents the true market consensus for our probability model.
+ * Also returns whether Supabase responded successfully (connectivity check).
  */
-async function fetchOpeningOdds(): Promise<Map<string, number>> {
+async function fetchOpeningOdds(): Promise<{ data: Map<string, number>; connected: boolean }> {
   const map = new Map<string, number>();
 
   try {
     const res = await fetch('/api/history?opening=true');
-    if (!res.ok) return map;
+    if (!res.ok) return { data: map, connected: false };
     const json = await res.json();
-    if (!json.data) return map;
+    if (json.error) return { data: map, connected: false };
 
-    // Accumulate all opening prices per event+runner for averaging
-    const pricesMap = new Map<string, number[]>();
-    for (const row of json.data) {
-      if (row.is_opening && row.back_price) {
-        const key = `${row.event_id}::${row.runner_name}`;
-        const price = parseFloat(row.back_price);
-        if (isNaN(price) || price <= 0) continue;
-        const existing = pricesMap.get(key) || [];
-        existing.push(price);
-        pricesMap.set(key, existing);
+    if (json.data) {
+      // Accumulate all opening prices per event+runner for averaging
+      const pricesMap = new Map<string, number[]>();
+      for (const row of json.data) {
+        if (row.is_opening && row.back_price) {
+          const key = `${row.event_id}::${row.runner_name}`;
+          const price = parseFloat(row.back_price);
+          if (isNaN(price) || price <= 0) continue;
+          const existing = pricesMap.get(key) || [];
+          existing.push(price);
+          pricesMap.set(key, existing);
+        }
+      }
+
+      // Compute average opening price per event+runner
+      for (const [key, prices] of pricesMap) {
+        const avg = prices.reduce((sum, p) => sum + p, 0) / prices.length;
+        map.set(key, avg);
       }
     }
 
-    // Compute average opening price per event+runner
-    for (const [key, prices] of pricesMap) {
-      const avg = prices.reduce((sum, p) => sum + p, 0) / prices.length;
-      map.set(key, avg);
-    }
+    return { data: map, connected: true };
   } catch {
     // Supabase not available, opening odds will be null
+    return { data: map, connected: false };
   }
-
-  return map;
 }
 
 /**
@@ -294,8 +298,9 @@ export function useOdds(settings: UserSettings) {
         snapshotStatus = await saveSnapshots(events);
       }
 
-      // Fetch opening odds from Supabase
-      const openingOdds = await fetchOpeningOdds();
+      // Fetch opening odds from Supabase (also serves as connectivity check)
+      const openingResult = await fetchOpeningOdds();
+      const openingOdds = openingResult.data;
 
       // Transform into our domain model
       const races = transformEvents(events, openingOdds, settings);
@@ -332,7 +337,7 @@ export function useOdds(settings: UserSettings) {
         racesTomorrow: tomorrowRaces.length,
         valueAlerts,
         snapshotsSaved: snapshotStatus.saved,
-        supabaseConnected: snapshotStatus.error === null && snapshotStatus.saved > 0,
+        supabaseConnected: openingResult.connected,
         openingOddsCount: openingOdds.size,
         lastRefreshed: new Date().toISOString(),
       };
